@@ -1,0 +1,11 @@
+.bucket-overdue { border-left: 4px solid var(--bs-danger); }
+.bucket-due_soon { border-left: 4px solid var(--bs-warning); }
+.bucket-ok { border-left: 4px solid var(--bs-success); }
+
+.kind-pro_service {
+  background-color: var(--bs-tertiary-bg);
+}
+
+.badge-kind-pro_service {
+  background-color: var(--bs-indigo, #6610f2) !important;
+}

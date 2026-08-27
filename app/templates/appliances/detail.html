@@ -1,0 +1,316 @@
+{% extends 'base.html' %}
+{% block title %}{{ appliance.name }} — Homebase{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <h1 class="h3 mb-0">{{ appliance.name }}</h1>
+    <div class="text-muted">
+      {{ category_labels.get(appliance.category, appliance.category) }}
+      {% if appliance.location %} · {{ appliance.location }}{% endif %}
+    </div>
+  </div>
+  <div>
+    <a href="{{ url_for('main.appliance_edit', appliance_id=appliance.id) }}" class="btn btn-outline-secondary btn-sm">Edit</a>
+    {% if appliance.status.value == 'active' %}
+      <form method="post" action="{{ url_for('main.appliance_archive', appliance_id=appliance.id) }}"
+            class="d-inline" data-confirm="Archive {{ appliance.name }}? It stays in history but leaves the active list.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-outline-danger btn-sm">Archive</button>
+      </form>
+    {% else %}
+      <form method="post" action="{{ url_for('main.appliance_unarchive', appliance_id=appliance.id) }}" class="d-inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-outline-success btn-sm">Restore</button>
+      </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-2 mb-4 text-muted small">
+  {% if appliance.make %}<div class="col-auto">Make: {{ appliance.make }}</div>{% endif %}
+  {% if appliance.model_number %}<div class="col-auto">Model: {{ appliance.model_number }}</div>{% endif %}
+  {% if appliance.serial_number %}<div class="col-auto">Serial: {{ appliance.serial_number }}</div>{% endif %}
+  {% if appliance.install_date %}<div class="col-auto">Installed: {{ appliance.install_date|datefmt }}</div>{% endif %}
+  {% if appliance.purchase_date %}<div class="col-auto">Purchased: {{ appliance.purchase_date|datefmt }}</div>{% endif %}
+</div>
+{% if appliance.notes %}<p>{{ appliance.notes }}</p>{% endif %}
+
+<!-- Documents -->
+<section class="mb-5">
+  <h2 class="h5">Documents</h2>
+  {% if documents %}
+    <ul class="list-group mb-3">
+      {% for doc in documents %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            <span class="badge text-bg-light border text-capitalize">{{ doc.doc_type.value.replace('_', ' ') }}</span>
+            {% if doc.file_path %}
+              <a href="{{ url_for('main.document_file', document_id=doc.id) }}" target="_blank">{{ doc.original_filename }}</a>
+            {% else %}
+              <a href="{{ doc.external_url }}" target="_blank" rel="noopener">{{ doc.external_url }}</a>
+            {% endif %}
+          </div>
+          <form method="post" action="{{ url_for('main.document_delete', document_id=doc.id) }}"
+                data-confirm="Remove this document?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="appliance_id" value="{{ appliance.id }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="text-muted">No documents yet.</p>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('main.document_upload', appliance_id=appliance.id) }}"
+        enctype="multipart/form-data" class="row g-2 align-items-end">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="col-auto">
+      <label class="form-label">Type</label>
+      <select class="form-select form-select-sm" name="doc_type">
+        <option value="manual">Manual</option>
+        <option value="photo">Photo</option>
+        <option value="receipt">Receipt</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+    <div class="col-auto">
+      <label class="form-label">File (PDF/PNG/JPG/WEBP)</label>
+      <input type="file" class="form-control form-control-sm" name="file">
+    </div>
+    <div class="col-auto">
+      <label class="form-label">or link</label>
+      <input type="url" class="form-control form-control-sm" name="external_url" placeholder="https://…">
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-sm btn-primary">Add</button>
+    </div>
+  </form>
+</section>
+
+<!-- Maintenance tasks -->
+<section class="mb-5">
+  <h2 class="h5">Homeowner maintenance</h2>
+  {% if appliance.maintenance_tasks %}
+    <ul class="list-group mb-3">
+      {% for task in appliance.maintenance_tasks %}
+        <li class="list-group-item">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <strong>{{ task.title }}</strong>
+              <span class="text-muted small">every {{ task.frequency_value }} {{ task.frequency_unit.value }}</span>
+              {% if task.description %}<div class="small text-muted">{{ task.description }}</div>{% endif %}
+              <div class="small">
+                {% if task.next_due_at %}Next due {{ task.next_due_at|datefmt }}{% else %}Not yet completed{% endif %}
+              </div>
+            </div>
+            <div class="d-flex gap-2">
+              <form method="post" action="{{ url_for('main.maintenance_task_complete', task_id=task.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-success">Mark done</button>
+              </form>
+              <form method="post" action="{{ url_for('main.maintenance_task_delete', task_id=task.id) }}"
+                    data-confirm="Delete this task?">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+              </form>
+            </div>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="text-muted">No maintenance tasks yet.</p>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('main.maintenance_task_create', appliance_id=appliance.id) }}"
+        class="row g-2 align-items-end">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="col-md-4">
+      <label class="form-label">Task</label>
+      <input type="text" class="form-control form-control-sm" name="title" required placeholder="e.g. Clean filter">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Description</label>
+      <input type="text" class="form-control form-control-sm" name="description">
+    </div>
+    <div class="col-auto">
+      <label class="form-label">Every</label>
+      <input type="number" min="1" class="form-control form-control-sm" name="frequency_value" required style="width: 5rem">
+    </div>
+    <div class="col-auto">
+      <label class="form-label">&nbsp;</label>
+      <select class="form-select form-select-sm" name="frequency_unit">
+        <option value="days">days</option>
+        <option value="weeks">weeks</option>
+        <option value="months" selected>months</option>
+        <option value="years">years</option>
+      </select>
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-sm btn-primary">Add task</button>
+    </div>
+  </form>
+</section>
+
+<!-- Consumables -->
+<section class="mb-5">
+  <h2 class="h5">Consumables</h2>
+  {% if appliance.consumables %}
+    <ul class="list-group mb-3">
+      {% for consumable in appliance.consumables %}
+        <li class="list-group-item">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <strong>{{ consumable.name }}</strong>
+              {% if consumable.part_number %}<span class="text-muted small">#{{ consumable.part_number }}</span>{% endif %}
+              {% if consumable.purchase_url %}
+                <a href="{{ consumable.purchase_url }}" target="_blank" rel="noopener" class="small">Buy</a>
+              {% endif %}
+              <div class="small">
+                {% if consumable.next_due_at %}Next due {{ consumable.next_due_at|datefmt }}
+                {% elif consumable.frequency_value %}Not yet replaced
+                {% else %}No replacement schedule{% endif %}
+              </div>
+            </div>
+            <div class="d-flex gap-2">
+              <form method="post" action="{{ url_for('main.consumable_replace', consumable_id=consumable.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-success">Mark replaced</button>
+              </form>
+              <form method="post" action="{{ url_for('main.consumable_delete', consumable_id=consumable.id) }}"
+                    data-confirm="Delete this consumable?">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+              </form>
+            </div>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="text-muted">No consumables tracked.</p>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('main.consumable_create', appliance_id=appliance.id) }}"
+        class="row g-2 align-items-end">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="col-md-3">
+      <label class="form-label">Name</label>
+      <input type="text" class="form-control form-control-sm" name="name" required placeholder="e.g. Water filter">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label">Part #</label>
+      <input type="text" class="form-control form-control-sm" name="part_number">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label">Purchase link</label>
+      <input type="url" class="form-control form-control-sm" name="purchase_url">
+    </div>
+    <div class="col-auto">
+      <label class="form-label">Every</label>
+      <input type="number" min="1" class="form-control form-control-sm" name="frequency_value" style="width: 5rem">
+    </div>
+    <div class="col-auto">
+      <label class="form-label">&nbsp;</label>
+      <select class="form-select form-select-sm" name="frequency_unit">
+        <option value="">—</option>
+        <option value="days">days</option>
+        <option value="weeks">weeks</option>
+        <option value="months" selected>months</option>
+        <option value="years">years</option>
+      </select>
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-sm btn-primary">Add</button>
+    </div>
+  </form>
+</section>
+
+<!-- Professional service -->
+<section class="mb-5">
+  <h2 class="h5">Professional service</h2>
+  {% if appliance.pro_service_interval_value %}
+    <p class="text-muted small">
+      Recommended every {{ appliance.pro_service_interval_value }} {{ appliance.pro_service_interval_unit.value }}.
+      {% if appliance.pro_service_next_due %}Next due {{ appliance.pro_service_next_due|datefmt }}.{% endif %}
+    </p>
+  {% else %}
+    <p class="text-muted small">No recommended interval set. Add one from the Edit page.</p>
+  {% endif %}
+
+  {% if appliance.service_records %}
+    <ul class="list-group mb-3">
+      {% for record in appliance.service_records %}
+        <li class="list-group-item d-flex justify-content-between align-items-start">
+          <div>
+            <strong>{{ record.service_date|datefmt }}</strong>
+            {% if record.vendor %} —
+              <a href="{{ url_for('main.vendor_detail', vendor_id=record.vendor.id) }}">{{ record.vendor.name }}</a>
+            {% endif %}
+            {% if record.cost %} <span class="text-muted small">${{ '%.2f'|format(record.cost) }}</span>{% endif %}
+            {% if record.notes %}<div class="small text-muted">{{ record.notes }}</div>{% endif %}
+          </div>
+          <form method="post" action="{{ url_for('main.service_record_delete', record_id=record.id) }}"
+                data-confirm="Delete this service record?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="text-muted">No service visits logged yet.</p>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('main.service_record_create', appliance_id=appliance.id) }}"
+        class="row g-2 align-items-end">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="col-auto">
+      <label class="form-label">Date</label>
+      <input type="date" class="form-control form-control-sm" name="service_date" required>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Vendor</label>
+      <select class="form-select form-select-sm" name="vendor_id" id="vendor_id" onchange="toggleNewVendorFields()">
+        <option value="">Select…</option>
+        {% for vendor in vendors %}
+          <option value="{{ vendor.id }}">{{ vendor.name }}</option>
+        {% endfor %}
+        <option value="__new__">New vendor…</option>
+      </select>
+    </div>
+    <div class="col-auto d-none" id="new_vendor_fields">
+      <label class="form-label">New vendor name</label>
+      <input type="text" class="form-control form-control-sm" name="new_vendor_name" placeholder="e.g. ACME HVAC">
+    </div>
+    <div class="col-auto d-none" id="new_vendor_type_field">
+      <label class="form-label">Type</label>
+      <input type="text" class="form-control form-control-sm" name="new_vendor_type" placeholder="e.g. HVAC">
+    </div>
+    <div class="col-auto">
+      <label class="form-label">Cost</label>
+      <input type="number" step="0.01" min="0" class="form-control form-control-sm" name="cost" style="width: 7rem">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Notes</label>
+      <input type="text" class="form-control form-control-sm" name="notes">
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-sm btn-primary">Log visit</button>
+    </div>
+  </form>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function toggleNewVendorFields() {
+    var isNew = document.getElementById('vendor_id').value === '__new__';
+    document.getElementById('new_vendor_fields').classList.toggle('d-none', !isNew);
+    document.getElementById('new_vendor_type_field').classList.toggle('d-none', !isNew);
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard — Homebase{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-4">Dashboard</h1>
+
+{% macro kind_badge(kind) %}
+  {% if kind == 'pro_service' %}
+    <span class="badge badge-kind-pro_service">Pro service</span>
+  {% elif kind == 'consumable' %}
+    <span class="badge text-bg-secondary">Consumable</span>
+  {% else %}
+    <span class="badge text-bg-light border">Maintenance</span>
+  {% endif %}
+{% endmacro %}
+
+{% macro bucket_section(title, bucket_key, items, empty_msg) %}
+  <h2 class="h5 mt-4">{{ title }} <span class="text-muted">({{ items|length }})</span></h2>
+  {% if items %}
+    <div class="list-group mb-3">
+      {% for item in items %}
+        <a href="{{ url_for('main.appliance_detail', appliance_id=item.appliance.id) }}"
+           class="list-group-item list-group-item-action bucket-{{ bucket_key }} {{ 'kind-pro_service' if item.kind == 'pro_service' }}">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <strong>{{ item.appliance.name }}</strong> — {{ item.label }}
+              {{ kind_badge(item.kind) }}
+            </div>
+            <div class="text-muted small">
+              {% if item.next_due_at %}Due {{ item.next_due_at|datefmt }}{% else %}No due date{% endif %}
+            </div>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-muted">{{ empty_msg }}</p>
+  {% endif %}
+{% endmacro %}
+
+{{ bucket_section('Overdue', 'overdue', buckets.overdue, 'Nothing overdue.') }}
+{{ bucket_section('Due soon', 'due_soon', buckets.due_soon, 'Nothing due soon.') }}
+{{ bucket_section('Up to date', 'ok', buckets.ok, 'Nothing tracked yet.') }}
+{% endblock %}

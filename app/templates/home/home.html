@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% block title %}Home — Homebase{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-4">Home</h1>
+
+<form method="post" class="row g-3 mb-5">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="col-md-6">
+    <label class="form-label" for="name">Household name</label>
+    <input type="text" class="form-control" id="name" name="name" required value="{{ household.name }}">
+  </div>
+  <div class="col-md-6">
+    <label class="form-label" for="address">Address</label>
+    <input type="text" class="form-control" id="address" name="address" value="{{ household.address or '' }}">
+  </div>
+
+  <div class="col-md-3">
+    <label class="form-label" for="square_footage">Square footage</label>
+    <input type="number" min="0" class="form-control" id="square_footage" name="square_footage"
+           value="{{ household.square_footage or '' }}">
+  </div>
+  <div class="col-md-3">
+    <label class="form-label" for="year_built">Year built</label>
+    <input type="number" min="1600" max="2100" class="form-control" id="year_built" name="year_built"
+           value="{{ household.year_built or '' }}">
+    {% if household.age_years is not none %}
+      <div class="form-text">{{ household.age_years }} years old</div>
+    {% endif %}
+  </div>
+
+  <div class="col-12">
+    <label class="form-label" for="notes">Notes</label>
+    <textarea class="form-control" id="notes" name="notes" rows="3">{{ household.notes or '' }}</textarea>
+  </div>
+
+  <div class="col-12">
+    <button type="submit" class="btn btn-primary">Save</button>
+  </div>
+</form>
+
+<section class="mb-5">
+  <h2 class="h5">Documents</h2>
+  <p class="text-muted small">Floor plans, surveys, inspection reports, and anything else about the property itself (not a specific appliance).</p>
+  {% if documents %}
+    <ul class="list-group mb-3">
+      {% for doc in documents %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            <span class="badge text-bg-light border text-capitalize">{{ doc.doc_type.value.replace('_', ' ') }}</span>
+            {% if doc.file_path %}
+              <a href="{{ url_for('main.document_file', document_id=doc.id) }}" target="_blank">{{ doc.original_filename }}</a>
+            {% else %}
+              <a href="{{ doc.external_url }}" target="_blank" rel="noopener">{{ doc.external_url }}</a>
+            {% endif %}
+          </div>
+          <form method="post" action="{{ url_for('main.home_document_delete', document_id=doc.id) }}"
+                data-confirm="Remove this document?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="text-muted">No home documents yet.</p>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('main.home_document_upload') }}"
+        enctype="multipart/form-data" class="row g-2 align-items-end">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="col-auto">
+      <label class="form-label">Type</label>
+      <select class="form-select form-select-sm" name="doc_type">
+        <option value="floor_plan">Floor plan</option>
+        <option value="inspection_report">Inspection report</option>
+        <option value="photo">Photo</option>
+        <option value="receipt">Receipt</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+    <div class="col-auto">
+      <label class="form-label">File (PDF/PNG/JPG/WEBP)</label>
+      <input type="file" class="form-control form-control-sm" name="file">
+    </div>
+    <div class="col-auto">
+      <label class="form-label">or link</label>
+      <input type="url" class="form-control form-control-sm" name="external_url" placeholder="https://…">
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-sm btn-primary">Add</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

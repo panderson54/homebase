@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% block title %}{{ vendor.name }} — Homebase{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <h1 class="h3 mb-0">{{ vendor.name }}</h1>
+    <div class="text-muted">{{ vendor_type_labels.get(vendor.vendor_type, vendor.vendor_type) }}</div>
+  </div>
+  <a href="{{ url_for('main.vendor_edit', vendor_id=vendor.id) }}" class="btn btn-outline-secondary btn-sm">Edit</a>
+</div>
+
+<div class="row g-2 mb-4 text-muted small">
+  {% if vendor.contact_name %}<div class="col-auto">Contact: {{ vendor.contact_name }}</div>{% endif %}
+  {% if vendor.phone %}<div class="col-auto">Phone: {{ vendor.phone }}</div>{% endif %}
+  {% if vendor.email %}<div class="col-auto">Email: {{ vendor.email }}</div>{% endif %}
+  {% if vendor.website %}<div class="col-auto"><a href="{{ vendor.website }}" target="_blank" rel="noopener">{{ vendor.website }}</a></div>{% endif %}
+</div>
+{% if vendor.notes %}<p>{{ vendor.notes }}</p>{% endif %}
+
+<!-- Documents -->
+<section class="mb-5">
+  <h2 class="h5">Documents</h2>
+  {% if documents %}
+    <ul class="list-group mb-3">
+      {% for doc in documents %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            <span class="badge text-bg-light border text-capitalize">{{ doc.doc_type.value.replace('_', ' ') }}</span>
+            {% if doc.file_path %}
+              <a href="{{ url_for('main.document_file', document_id=doc.id) }}" target="_blank">{{ doc.original_filename }}</a>
+            {% else %}
+              <a href="{{ doc.external_url }}" target="_blank" rel="noopener">{{ doc.external_url }}</a>
+            {% endif %}
+          </div>
+          <form method="post" action="{{ url_for('main.vendor_document_delete', vendor_id=vendor.id, document_id=doc.id) }}"
+                data-confirm="Remove this document?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="text-muted">No documents yet.</p>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('main.vendor_document_upload', vendor_id=vendor.id) }}"
+        enctype="multipart/form-data" class="row g-2 align-items-end">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="col-auto">
+      <label class="form-label">Type</label>
+      <select class="form-select form-select-sm" name="doc_type">
+        <option value="quote">Quote</option>
+        <option value="invoice">Invoice</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+    <div class="col-auto">
+      <label class="form-label">File (PDF/PNG/JPG/WEBP)</label>
+      <input type="file" class="form-control form-control-sm" name="file">
+    </div>
+    <div class="col-auto">
+      <label class="form-label">or link</label>
+      <input type="url" class="form-control form-control-sm" name="external_url" placeholder="https://…">
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-sm btn-primary">Add</button>
+    </div>
+  </form>
+</section>
+
+<!-- Service history -->
+<section class="mb-5">
+  <h2 class="h5">Service history</h2>
+  {% if vendor.services %}
+    <ul class="list-group mb-3">
+      {% for record in vendor.services %}
+        <li class="list-group-item d-flex justify-content-between align-items-start">
+          <div>
+            <strong>{{ record.service_date|datefmt }}</strong>
+            {% if record.appliance %}
+              — <a href="{{ url_for('main.appliance_detail', appliance_id=record.appliance.id) }}">{{ record.appliance.name }}</a>
+            {% else %}
+              <span class="text-muted small">— not appliance-specific</span>
+            {% endif %}
+            {% if record.cost %} <span class="text-muted small">${{ '%.2f'|format(record.cost) }}</span>{% endif %}
+            {% if record.notes %}<div class="small text-muted">{{ record.notes }}</div>{% endif %}
+          </div>
+          <form method="post" action="{{ url_for('main.service_record_delete', record_id=record.id) }}"
+                data-confirm="Delete this service record?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="text-muted">No service visits logged yet.</p>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('main.vendor_service_create', vendor_id=vendor.id) }}"
+        class="row g-2 align-items-end">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="col-auto">
+      <label class="form-label">Date</label>
+      <input type="date" class="form-control form-control-sm" name="service_date" required>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Appliance</label>
+      <select class="form-select form-select-sm" name="appliance_id">
+        <option value="">Not appliance-specific</option>
+        {% for appliance in appliances %}
+          <option value="{{ appliance.id }}">{{ appliance.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto">
+      <label class="form-label">Cost</label>
+      <input type="number" step="0.01" min="0" class="form-control form-control-sm" name="cost" style="width: 7rem">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Notes</label>
+      <input type="text" class="form-control form-control-sm" name="notes">
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-sm btn-primary">Log visit</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

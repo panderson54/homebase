@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Homebase{% endblock %}</title>
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('theme');
+        if (saved) document.documentElement.setAttribute('data-bs-theme', saved);
+      } catch (e) {}
+    })();
+  </script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
+</head>
+<body>
+  {% if current_user.is_authenticated %}
+  <nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom mb-4">
+    <div class="container">
+      <a class="navbar-brand" href="{{ url_for('main.dashboard') }}">Homebase</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navContent">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navContent">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}"
+               href="{{ url_for('main.dashboard') }}">Dashboard</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('main.appliance') %}active{% endif %}"
+               href="{{ url_for('main.appliance_list') }}">Appliances</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('main.vendor') %}active{% endif %}"
+               href="{{ url_for('main.vendor_list') }}">Vendors</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'main.home' %}active{% endif %}"
+               href="{{ url_for('main.home') }}">Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('main.context_export') %}active{% endif %}"
+               href="{{ url_for('main.context_export') }}">Export</a>
+          </li>
+        </ul>
+        <ul class="navbar-nav align-items-lg-center">
+          <li class="nav-item me-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="themeToggle">🌓</button>
+          </li>
+          <li class="nav-item">
+            <span class="navbar-text me-2">{{ current_user.name }}</span>
+          </li>
+          <li class="nav-item">
+            <form action="{{ url_for('main.logout') }}" method="post" class="d-inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-sm btn-outline-secondary">Log out</button>
+            </form>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+  {% endif %}
+
+  <main class="container pb-5">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ 'danger' if category == 'danger' else category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="confirmModalTitle">Confirm</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="confirmModalBody"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-danger" id="confirmModalConfirmBtn">Confirm</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Auto-inject CSRF token into fetch() calls for non-GET requests.
+    (function () {
+      var token = document.querySelector('meta[name="csrf-token"]').content;
+      var originalFetch = window.fetch;
+      window.fetch = function (url, options) {
+        options = options || {};
+        var method = (options.method || 'GET').toUpperCase();
+        if (method !== 'GET') {
+          options.headers = Object.assign({}, options.headers, {'X-CSRFToken': token});
+        }
+        return originalFetch(url, options);
+      };
+    })();
+
+    var confirmModalEl = document.getElementById('confirmModal');
+    var confirmModal = confirmModalEl ? new bootstrap.Modal(confirmModalEl) : null;
+    function showConfirmModal(title, body, onConfirm) {
+      document.getElementById('confirmModalTitle').textContent = title;
+      document.getElementById('confirmModalBody').textContent = body;
+      var btn = document.getElementById('confirmModalConfirmBtn');
+      var freshBtn = btn.cloneNode(true);
+      btn.parentNode.replaceChild(freshBtn, btn);
+      freshBtn.addEventListener('click', function () {
+        confirmModal.hide();
+        onConfirm();
+      });
+      confirmModal.show();
+    }
+
+    document.querySelectorAll('form[data-confirm]').forEach(function (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        showConfirmModal('Please confirm', form.dataset.confirm, function () {
+          form.submit();
+        });
+      });
+    });
+
+    document.getElementById('themeToggle') && document.getElementById('themeToggle').addEventListener('click', function () {
+      var root = document.documentElement;
+      var next = root.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
+      root.setAttribute('data-bs-theme', next);
+      try { localStorage.setItem('theme', next); } catch (e) {}
+    });
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
