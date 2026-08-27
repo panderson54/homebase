@@ -1,0 +1,223 @@
+"""SQLAlchemy ORM models. Thin: no business logic beyond simple property accessors."""
+import enum
+from datetime import datetime
+
+from flask_login import UserMixin
+from werkzeug.security import check_password_hash, generate_password_hash
+
+from app import db
+from app.maintenance_calc import compute_next_due
+
+
+class ApplianceStatus(str, enum.Enum):
+    active = 'active'
+    archived = 'archived'
+
+
+class FrequencyUnit(str, enum.Enum):
+    days = 'days'
+    weeks = 'weeks'
+    months = 'months'
+    years = 'years'
+
+
+class DocumentType(str, enum.Enum):
+    photo = 'photo'
+    manual = 'manual'
+    receipt = 'receipt'
+    other = 'other'
+
+
+class TemplateKind(str, enum.Enum):
+    maintenance = 'maintenance'
+    consumable = 'consumable'
+
+
+class Household(db.Model):
+    __tablename__ = 'households'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+
+    users = db.relationship('User', back_populates='household', cascade='all, delete-orphan')
+    appliances = db.relationship('Appliance', back_populates='household', cascade='all, delete-orphan')
+
+
+class User(UserMixin, db.Model):
+    __tablename__ = 'users'
+
+    id = db.Column(db.Integer, primary_key=True)
+    household_id = db.Column(db.Integer, db.ForeignKey('households.id'), nullable=False)
+    email = db.Column(db.String(255), nullable=False, unique=True)
+    password_hash = db.Column(db.String(255), nullable=False)
+    name = db.Column(db.String(120), nullable=False)
+
+    household = db.relationship('Household', back_populates='users')
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+
+class Appliance(db.Model):
+    __tablename__ = 'appliances'
+
+    id = db.Column(db.Integer, primary_key=True)
+    household_id = db.Column(db.Integer, db.ForeignKey('households.id'), nullable=False)
+    category = db.Column(db.String(80), nullable=False)
+    name = db.Column(db.String(120), nullable=False)
+    make = db.Column(db.String(120))
+    model_number = db.Column(db.String(120))
+    serial_number = db.Column(db.String(120))
+    location = db.Column(db.String(120))
+    install_date = db.Column(db.Date)
+    purchase_date = db.Column(db.Date)
+    status = db.Column(
+        db.Enum(ApplianceStatus, native_enum=False), nullable=False, default=ApplianceStatus.active
+    )
+    notes = db.Column(db.Text)
+    pro_service_interval_value = db.Column(db.Integer)
+    pro_service_interval_unit = db.Column(db.Enum(FrequencyUnit, native_enum=False))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    household = db.relationship('Household', back_populates='appliances')
+    documents = db.relationship(
+        'Document', back_populates='appliance', cascade='all, delete-orphan',
+        order_by='Document.uploaded_at.desc()',
+    )
+    maintenance_tasks = db.relationship(
+        'MaintenanceTask', back_populates='appliance', cascade='all, delete-orphan',
+        order_by='MaintenanceTask.title',
+    )
+    consumables = db.relationship(
+        'Consumable', back_populates='appliance', cascade='all, delete-orphan', order_by='Consumable.name'
+    )
+    service_records = db.relationship(
+        'ServiceRecord', back_populates='appliance', cascade='all, delete-orphan',
+        order_by='ServiceRecord.service_date.desc()',
+    )
+
+    @property
+    def latest_service_date(self):
+        return self.service_records[0].service_date if self.service_records else None
+
+    @property
+    def pro_service_next_due(self):
+        """Next pro-service due date, computed from the latest visit (or install date if none yet)."""
+        if not self.pro_service_interval_value or not self.pro_service_interval_unit:
+            return None
+        baseline = self.latest_service_date or self.install_date or self.created_at.date()
+        return compute_next_due(baseline, self.pro_service_interval_value, self.pro_service_interval_unit.value)
+
+
+class Document(db.Model):
+    __tablename__ = 'documents'
+
+    id = db.Column(db.Integer, primary_key=True)
+    appliance_id = db.Column(db.Integer, db.ForeignKey('appliances.id'), nullable=False)
+    doc_type = db.Column(db.Enum(DocumentType, native_enum=False), nullable=False)
+    file_path = db.Column(db.String(500))
+    external_url = db.Column(db.String(1000))
+    original_filename = db.Column(db.String(255))
+    content_type = db.Column(db.String(120))
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    appliance = db.relationship('Appliance', back_populates='documents')
+
+    __table_args__ = (
+        db.CheckConstraint(
+            '(file_path IS NOT NULL AND external_url IS NULL) OR '
+            '(file_path IS NULL AND external_url IS NOT NULL)',
+            name='ck_document_file_xor_url',
+        ),
+    )
+
+
+class MaintenanceTask(db.Model):
+    __tablename__ = 'maintenance_tasks'
+
+    id = db.Column(db.Integer, primary_key=True)
+    appliance_id = db.Column(db.Integer, db.ForeignKey('appliances.id'), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    frequency_value = db.Column(db.Integer, nullable=False)
+    frequency_unit = db.Column(db.Enum(FrequencyUnit, native_enum=False), nullable=False)
+    last_completed_at = db.Column(db.Date)
+    next_due_at = db.Column(db.Date)
+    active = db.Column(db.Boolean, nullable=False, default=True)
+
+    appliance = db.relationship('Appliance', back_populates='maintenance_tasks')
+    logs = db.relationship(
+        'MaintenanceLog', back_populates='task', cascade='all, delete-orphan',
+        order_by='MaintenanceLog.completed_at.desc()',
+    )
+
+
+class MaintenanceLog(db.Model):
+    __tablename__ = 'maintenance_logs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    task_id = db.Column(db.Integer, db.ForeignKey('maintenance_tasks.id'), nullable=False)
+    completed_at = db.Column(db.Date, nullable=False)
+    completed_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    notes = db.Column(db.Text)
+
+    task = db.relationship('MaintenanceTask', back_populates='logs')
+    completed_by = db.relationship('User')
+
+
+class Consumable(db.Model):
+    __tablename__ = 'consumables'
+
+    id = db.Column(db.Integer, primary_key=True)
+    appliance_id = db.Column(db.Integer, db.ForeignKey('appliances.id'), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    part_number = db.Column(db.String(120))
+    purchase_url = db.Column(db.String(1000))
+    frequency_value = db.Column(db.Integer)
+    frequency_unit = db.Column(db.Enum(FrequencyUnit, native_enum=False))
+    last_replaced_at = db.Column(db.Date)
+    next_due_at = db.Column(db.Date)
+
+    appliance = db.relationship('Appliance', back_populates='consumables')
+
+
+class ServiceRecord(db.Model):
+    __tablename__ = 'service_records'
+
+    id = db.Column(db.Integer, primary_key=True)
+    appliance_id = db.Column(db.Integer, db.ForeignKey('appliances.id'), nullable=False)
+    service_date = db.Column(db.Date, nullable=False)
+    vendor = db.Column(db.String(200))
+    notes = db.Column(db.Text)
+    cost = db.Column(db.Numeric(10, 2))
+
+    appliance = db.relationship('Appliance', back_populates='service_records')
+
+
+class CategoryTemplate(db.Model):
+    __tablename__ = 'category_templates'
+
+    id = db.Column(db.Integer, primary_key=True)
+    category = db.Column(db.String(80), nullable=False, index=True)
+    kind = db.Column(db.Enum(TemplateKind, native_enum=False), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    frequency_value = db.Column(db.Integer)
+    frequency_unit = db.Column(db.Enum(FrequencyUnit, native_enum=False))
+    part_number_hint = db.Column(db.String(120))
+
+
+class AppSetting(db.Model):
+    __tablename__ = 'app_settings'
+
+    id = db.Column(db.Integer, primary_key=True)
+    household_id = db.Column(db.Integer, db.ForeignKey('households.id'), nullable=False)
+    key = db.Column(db.String(120), nullable=False)
+    value = db.Column(db.Text)
+
+    __table_args__ = (
+        db.UniqueConstraint('household_id', 'key', name='uq_app_setting_household_key'),
+    )

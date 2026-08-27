@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit' if appliance else 'Add' }} appliance — Homebase{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-4">{{ 'Edit appliance' if appliance else 'Add appliance' }}</h1>
+
+<form method="post" class="row g-3">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="col-md-6">
+    <label class="form-label" for="name">Name</label>
+    <input type="text" class="form-control" id="name" name="name" required
+           value="{{ appliance.name if appliance else '' }}" placeholder="e.g. Furnace">
+  </div>
+
+  <div class="col-md-6">
+    <label class="form-label" for="category">Category</label>
+    <select class="form-select" id="category" name="category" onchange="toggleCustomCategory()">
+      {% for slug, label in category_labels.items() %}
+        <option value="{{ slug }}" {{ 'selected' if appliance and appliance.category == slug }}>{{ label }}</option>
+      {% endfor %}
+      <option value="__other__"
+        {{ 'selected' if appliance and appliance.category not in category_labels }}>Other…</option>
+    </select>
+    <input type="text" class="form-control mt-2 d-none" id="custom_category" name="custom_category"
+           placeholder="Custom category name"
+           value="{{ appliance.category if appliance and appliance.category not in category_labels else '' }}">
+  </div>
+
+  <div class="col-md-4">
+    <label class="form-label" for="make">Make</label>
+    <input type="text" class="form-control" id="make" name="make" value="{{ appliance.make if appliance else '' }}">
+  </div>
+  <div class="col-md-4">
+    <label class="form-label" for="model_number">Model number</label>
+    <input type="text" class="form-control" id="model_number" name="model_number"
+           value="{{ appliance.model_number if appliance else '' }}">
+  </div>
+  <div class="col-md-4">
+    <label class="form-label" for="serial_number">Serial number</label>
+    <input type="text" class="form-control" id="serial_number" name="serial_number"
+           value="{{ appliance.serial_number if appliance else '' }}">
+  </div>
+
+  <div class="col-md-4">
+    <label class="form-label" for="location">Location in home</label>
+    <input type="text" class="form-control" id="location" name="location"
+           value="{{ appliance.location if appliance else '' }}" placeholder="e.g. Basement utility room">
+  </div>
+  <div class="col-md-4">
+    <label class="form-label" for="install_date">Install date</label>
+    <input type="date" class="form-control" id="install_date" name="install_date"
+           value="{{ appliance.install_date if appliance else '' }}">
+  </div>
+  <div class="col-md-4">
+    <label class="form-label" for="purchase_date">Purchase date</label>
+    <input type="date" class="form-control" id="purchase_date" name="purchase_date"
+           value="{{ appliance.purchase_date if appliance else '' }}">
+  </div>
+
+  <div class="col-md-6">
+    <label class="form-label">Professional service interval</label>
+    <div class="input-group">
+      <input type="number" min="1" class="form-control" name="pro_service_interval_value"
+             value="{{ appliance.pro_service_interval_value if appliance else '' }}" placeholder="e.g. 1">
+      <select class="form-select" name="pro_service_interval_unit">
+        <option value="">—</option>
+        {% for unit in ['days', 'weeks', 'months', 'years'] %}
+          <option value="{{ unit }}"
+            {{ 'selected' if appliance and appliance.pro_service_interval_unit and appliance.pro_service_interval_unit.value == unit }}>
+            {{ unit }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-text">e.g. "1 years" for an annual tune-up. Leave blank if none.</div>
+  </div>
+
+  <div class="col-12">
+    <label class="form-label" for="notes">Notes</label>
+    <textarea class="form-control" id="notes" name="notes" rows="3">{{ appliance.notes if appliance else '' }}</textarea>
+  </div>
+
+  {% if not appliance %}
+  <div class="col-12">
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" id="apply_template" name="apply_template" checked>
+      <label class="form-check-label" for="apply_template">
+        Pre-fill maintenance tasks and consumables for this category, if we have a template
+      </label>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="col-12">
+    <button type="submit" class="btn btn-primary">{{ 'Save changes' if appliance else 'Add appliance' }}</button>
+    <a href="{{ url_for('main.appliance_detail', appliance_id=appliance.id) if appliance else url_for('main.appliance_list') }}"
+       class="btn btn-outline-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function toggleCustomCategory() {
+    var select = document.getElementById('category');
+    var input = document.getElementById('custom_category');
+    input.classList.toggle('d-none', select.value !== '__other__');
+  }
+  toggleCustomCategory();
+</script>
+{% endblock %}

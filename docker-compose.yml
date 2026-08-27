@@ -1,0 +1,13 @@
+services:
+  homebase:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "5100:5100"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    environment:
+      - FLASK_APP=run.py
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY}

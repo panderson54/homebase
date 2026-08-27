@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}Appliances — Homebase{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h3 mb-0">{{ 'Archived appliances' if show_archived else 'Appliances' }}</h1>
+  <div>
+    <a href="{{ url_for('main.appliance_list', archived=0 if show_archived else 1) }}"
+       class="btn btn-outline-secondary btn-sm">
+      {{ 'Back to active' if show_archived else 'View archived' }}
+    </a>
+    {% if not show_archived %}
+      <a href="{{ url_for('main.appliance_new') }}" class="btn btn-primary btn-sm">Add appliance</a>
+    {% endif %}
+  </div>
+</div>
+
+{% if appliances %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Category</th>
+          <th>Make / model</th>
+          <th>Location</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for appliance in appliances %}
+        <tr class="cursor-pointer" onclick="window.location='{{ url_for('main.appliance_detail', appliance_id=appliance.id) }}'">
+          <td><a href="{{ url_for('main.appliance_detail', appliance_id=appliance.id) }}">{{ appliance.name }}</a></td>
+          <td>{{ category_labels.get(appliance.category, appliance.category) }}</td>
+          <td>{{ appliance.make or '' }} {{ appliance.model_number or '' }}</td>
+          <td>{{ appliance.location or '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p class="text-muted">
+    {{ 'No archived appliances.' if show_archived else 'No appliances yet — add your first one to get started.' }}
+  </p>
+{% endif %}
+{% endblock %}
