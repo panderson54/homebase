@@ -11,6 +11,7 @@ from datetime import datetime
 from app import document_service
 from app.category_templates_data import CATEGORY_LABELS
 from app.models import ApplianceStatus
+from app.vendor_types_data import VENDOR_TYPE_LABELS
 
 
 def _document_lines(documents):
@@ -60,16 +61,43 @@ def _consumable_lines(consumable):
     return lines
 
 
-def _service_record_lines(records):
+def _service_record_lines(records, show_vendor=True, show_appliance=False):
     if not records:
         return ['  (no service visits logged)']
     lines = []
     for record in records:
-        vendor = f' — {record.vendor}' if record.vendor else ''
+        vendor = f' — {record.vendor.name}' if show_vendor and record.vendor else ''
+        appliance = f' — {record.appliance.name}' if show_appliance and record.appliance else ''
         cost = f' — ${record.cost:.2f}' if record.cost is not None else ''
-        lines.append(f'  - {record.service_date.isoformat()}{vendor}{cost}')
+        lines.append(f'  - {record.service_date.isoformat()}{vendor}{appliance}{cost}')
         if record.notes:
             lines.append(f'    Notes: {record.notes}')
+    return lines
+
+
+def _vendor_section(vendor):
+    label = VENDOR_TYPE_LABELS.get(vendor.vendor_type, vendor.vendor_type)
+    lines = [f'### {vendor.name} ({label})', '']
+    for field_label, value in (
+        ('Contact', vendor.contact_name),
+        ('Phone', vendor.phone),
+        ('Email', vendor.email),
+        ('Website', vendor.website),
+    ):
+        if value:
+            lines.append(f'- {field_label}: {value}')
+    if vendor.notes:
+        lines.append(f'- Notes: {vendor.notes}')
+    lines.append('')
+
+    lines.append('#### Documents')
+    lines.extend(_document_lines(document_service.get_documents_for('vendor', vendor.id)))
+    lines.append('')
+
+    lines.append('#### Service history')
+    lines.extend(_service_record_lines(vendor.services, show_vendor=False, show_appliance=True))
+    lines.append('')
+
     return lines
 
 
@@ -166,5 +194,12 @@ def build_context_markdown(household):
         lines.append('')
         for appliance in archived:
             lines.extend(_appliance_section(appliance))
+
+    vendors = sorted(household.vendors, key=lambda v: v.name)
+    if vendors:
+        lines.append('## Vendors')
+        lines.append('')
+        for vendor in vendors:
+            lines.extend(_vendor_section(vendor))
 
     return '\n'.join(lines)

@@ -30,9 +30,13 @@ architecture/build plan this was scaffolded from.
   age), notes, and documents about the property itself (floor plans,
   surveys, inspection reports)
 - A one-click context export (`/export`): a verbose Markdown snapshot of
-  the whole household — home profile plus every appliance's full history —
-  sized to fit comfortably in an LLM context window, viewable with a copy
-  button or downloadable as a `.md` file
+  the whole household — home profile, every appliance's full history, and
+  the vendor directory below — sized to fit comfortably in an LLM context
+  window, viewable with a copy button or downloadable as a `.md` file
+- A vendor directory: contact details and a type (HVAC, plumbing, etc.)
+  per vendor, their own quotes/invoices, and a full service-visit history
+  that can optionally link to a specific appliance — so "who did I use for
+  X" is always answerable
 - Simple multi-user login (Flask-Login) — accounts are created by hand via
   a CLI command, no self-serve signup
 
@@ -76,7 +80,9 @@ app/
   maintenance_calc.py         # Pure due-date math (no Flask/DB imports)
   category_templates_data.py  # Seed data per appliance category
   template_service.py         # Applies a category template to a new appliance
-  document_service.py         # Document storage + entity linking (appliance/home)
+  document_service.py         # Document storage + entity linking (appliance/home/vendor)
+  vendor_service.py           # Resolves a vendor pick/quick-add for a service visit
+  vendor_types_data.py        # Suggested vendor types (HVAC, plumbing, etc.)
   context_export_service.py   # Builds the Markdown context export
   cli.py                      # `flask create-user`, `flask seed-templates`
   routes/                     # Blueprint, split by domain
@@ -119,14 +125,22 @@ before starting Gunicorn, so deploys are just "pull, rebuild, restart."
 
 See `docs/appliance-tracker-plan.md` for the full schema rationale. In
 short: `households` → `users`, `appliances`; each appliance has
-`maintenance_tasks` (+ `maintenance_logs`), `consumables`, and
-`service_records`; `category_templates` is seed data keyed by category,
-copied onto a new appliance when its template is applied.
+`maintenance_tasks` (+ `maintenance_logs`) and `consumables`;
+`category_templates` is seed data keyed by category, copied onto a new
+appliance when its template is applied.
 
 `documents` (an uploaded file or an external link) isn't owned by any one
 entity directly — a separate `document_links` table maps a document to
 whatever it's attached to (`entity_type` + `entity_id`, currently
-`appliance` or `home`), so a document can in principle be linked to more
-than one entity, and a new linkable entity type doesn't need a schema
-change. `app/document_service.py` is the single place that creates,
-fetches, and unlinks/deletes documents through that table.
+`appliance`, `home`, or `vendor`), so a document can in principle be
+linked to more than one entity, and a new linkable entity type doesn't
+need a schema change. `app/document_service.py` is the single place that
+creates, fetches, and unlinks/deletes documents through that table.
+
+`vendors` (contact details, a type) have a `service_records` history —
+each visit optionally links to one `appliance` (some vendor work, like a
+roof repair, isn't about any single appliance) but always carries its own
+`household_id` for scoping. Logging a visit from an appliance's page can
+pick an existing vendor or quick-create one inline
+(`app/vendor_service.py`); logging one from a vendor's own page skips that
+step since the vendor is already known.

@@ -60,6 +60,15 @@ def logged_in_client(client, user):
 
 
 @pytest.fixture
+def vendor(db, household):
+    from app.models import Vendor
+    v = Vendor(household_id=household.id, name='ACME HVAC', vendor_type='hvac')
+    db.session.add(v)
+    db.session.commit()
+    return v
+
+
+@pytest.fixture
 def seeded_templates(db):
     """A minimal category_templates fixture (furnace only) for template-application tests."""
     from app.models import CategoryTemplate, FrequencyUnit, TemplateKind

@@ -35,6 +35,10 @@
                href="{{ url_for('main.appliance_list') }}">Appliances</a>
           </li>
           <li class="nav-item">
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('main.vendor') %}active{% endif %}"
+               href="{{ url_for('main.vendor_list') }}">Vendors</a>
+          </li>
+          <li class="nav-item">
             <a class="nav-link {% if request.endpoint == 'main.home' %}active{% endif %}"
                href="{{ url_for('main.home') }}">Home</a>
           </li>

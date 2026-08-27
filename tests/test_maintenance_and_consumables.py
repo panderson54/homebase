@@ -110,7 +110,7 @@ class TestConsumables:
 
 
 class TestServiceRecords:
-    def test_create_service_record_and_next_due(self, logged_in_client, db, household):
+    def test_create_service_record_with_existing_vendor(self, logged_in_client, db, household, vendor):
         appliance = Appliance(
             household_id=household.id, name='Furnace', category='furnace',
             pro_service_interval_value=1, pro_service_interval_unit='years',
@@ -120,20 +120,48 @@ class TestServiceRecords:
 
         resp = logged_in_client.post(f'/appliances/{appliance.id}/service-records', data={
             'service_date': '2026-01-15',
-            'vendor': 'ACME HVAC',
+            'vendor_id': vendor.id,
             'cost': '189.00',
         })
         assert resp.status_code == 302
         record = ServiceRecord.query.filter_by(appliance_id=appliance.id).first()
-        assert record.vendor == 'ACME HVAC'
+        assert record.vendor_id == vendor.id
+        assert record.household_id == household.id
         db.session.refresh(appliance)
         assert appliance.pro_service_next_due == date(2027, 1, 15)
+
+    def test_create_service_record_quick_creates_vendor(self, logged_in_client, db, household):
+        appliance = Appliance(household_id=household.id, name='Furnace', category='furnace')
+        db.session.add(appliance)
+        db.session.commit()
+
+        resp = logged_in_client.post(f'/appliances/{appliance.id}/service-records', data={
+            'service_date': '2026-01-15',
+            'vendor_id': '__new__',
+            'new_vendor_name': 'ACME HVAC',
+            'new_vendor_type': 'HVAC',
+        })
+        assert resp.status_code == 302
+        record = ServiceRecord.query.filter_by(appliance_id=appliance.id).first()
+        assert record.vendor.name == 'ACME HVAC'
+        assert record.vendor.vendor_type == 'hvac'
+
+    def test_create_service_record_without_vendor_fails(self, logged_in_client, db, household):
+        appliance = Appliance(household_id=household.id, name='Furnace', category='furnace')
+        db.session.add(appliance)
+        db.session.commit()
+
+        resp = logged_in_client.post(f'/appliances/{appliance.id}/service-records', data={
+            'service_date': '2026-01-15',
+        })
+        assert resp.status_code == 302
+        assert ServiceRecord.query.filter_by(appliance_id=appliance.id).count() == 0
 
     def test_delete_service_record(self, logged_in_client, db, household):
         appliance = Appliance(household_id=household.id, name='Furnace', category='furnace')
         db.session.add(appliance)
         db.session.commit()
-        record = ServiceRecord(appliance_id=appliance.id, service_date=date(2026, 1, 1))
+        record = ServiceRecord(household_id=household.id, appliance_id=appliance.id, service_date=date(2026, 1, 1))
         db.session.add(record)
         db.session.commit()
         record_id = record.id

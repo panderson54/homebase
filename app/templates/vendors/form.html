@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit' if vendor else 'Add' }} vendor — Homebase{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-4">{{ 'Edit vendor' if vendor else 'Add vendor' }}</h1>
+
+<form method="post" class="row g-3">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="col-md-6">
+    <label class="form-label" for="name">Name</label>
+    <input type="text" class="form-control" id="name" name="name" required
+           value="{{ vendor.name if vendor else '' }}" placeholder="e.g. ACME HVAC">
+  </div>
+
+  <div class="col-md-6">
+    <label class="form-label" for="vendor_type">Type</label>
+    <select class="form-select" id="vendor_type" name="vendor_type" onchange="toggleCustomVendorType()">
+      {% for slug, label in vendor_type_labels.items() %}
+        <option value="{{ slug }}" {{ 'selected' if vendor and vendor.vendor_type == slug }}>{{ label }}</option>
+      {% endfor %}
+      <option value="__other__"
+        {{ 'selected' if vendor and vendor.vendor_type not in vendor_type_labels }}>Other…</option>
+    </select>
+    <input type="text" class="form-control mt-2 d-none" id="custom_vendor_type" name="custom_vendor_type"
+           placeholder="Custom type"
+           value="{{ vendor.vendor_type if vendor and vendor.vendor_type not in vendor_type_labels else '' }}">
+  </div>
+
+  <div class="col-md-4">
+    <label class="form-label" for="contact_name">Contact name</label>
+    <input type="text" class="form-control" id="contact_name" name="contact_name"
+           value="{{ vendor.contact_name if vendor else '' }}">
+  </div>
+  <div class="col-md-4">
+    <label class="form-label" for="phone">Phone</label>
+    <input type="text" class="form-control" id="phone" name="phone" value="{{ vendor.phone if vendor else '' }}">
+  </div>
+  <div class="col-md-4">
+    <label class="form-label" for="email">Email</label>
+    <input type="email" class="form-control" id="email" name="email" value="{{ vendor.email if vendor else '' }}">
+  </div>
+
+  <div class="col-md-6">
+    <label class="form-label" for="website">Website</label>
+    <input type="url" class="form-control" id="website" name="website"
+           value="{{ vendor.website if vendor else '' }}" placeholder="https://…">
+  </div>
+
+  <div class="col-12">
+    <label class="form-label" for="notes">Notes</label>
+    <textarea class="form-control" id="notes" name="notes" rows="3"
+              placeholder="e.g. great with older furnaces, pricier but reliable">{{ vendor.notes if vendor else '' }}</textarea>
+  </div>
+
+  <div class="col-12">
+    <button type="submit" class="btn btn-primary">{{ 'Save changes' if vendor else 'Add vendor' }}</button>
+    <a href="{{ url_for('main.vendor_detail', vendor_id=vendor.id) if vendor else url_for('main.vendor_list') }}"
+       class="btn btn-outline-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function toggleCustomVendorType() {
+    var select = document.getElementById('vendor_type');
+    var input = document.getElementById('custom_vendor_type');
+    input.classList.toggle('d-none', select.value !== '__other__');
+  }
+  toggleCustomVendorType();
+</script>
+{% endblock %}

@@ -247,7 +247,9 @@
         <li class="list-group-item d-flex justify-content-between align-items-start">
           <div>
             <strong>{{ record.service_date|datefmt }}</strong>
-            {% if record.vendor %} — {{ record.vendor }}{% endif %}
+            {% if record.vendor %} —
+              <a href="{{ url_for('main.vendor_detail', vendor_id=record.vendor.id) }}">{{ record.vendor.name }}</a>
+            {% endif %}
             {% if record.cost %} <span class="text-muted small">${{ '%.2f'|format(record.cost) }}</span>{% endif %}
             {% if record.notes %}<div class="small text-muted">{{ record.notes }}</div>{% endif %}
           </div>
@@ -272,7 +274,21 @@
     </div>
     <div class="col-md-3">
       <label class="form-label">Vendor</label>
-      <input type="text" class="form-control form-control-sm" name="vendor">
+      <select class="form-select form-select-sm" name="vendor_id" id="vendor_id" onchange="toggleNewVendorFields()">
+        <option value="">Select…</option>
+        {% for vendor in vendors %}
+          <option value="{{ vendor.id }}">{{ vendor.name }}</option>
+        {% endfor %}
+        <option value="__new__">New vendor…</option>
+      </select>
+    </div>
+    <div class="col-auto d-none" id="new_vendor_fields">
+      <label class="form-label">New vendor name</label>
+      <input type="text" class="form-control form-control-sm" name="new_vendor_name" placeholder="e.g. ACME HVAC">
+    </div>
+    <div class="col-auto d-none" id="new_vendor_type_field">
+      <label class="form-label">Type</label>
+      <input type="text" class="form-control form-control-sm" name="new_vendor_type" placeholder="e.g. HVAC">
     </div>
     <div class="col-auto">
       <label class="form-label">Cost</label>
@@ -287,4 +303,14 @@
     </div>
   </form>
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function toggleNewVendorFields() {
+    var isNew = document.getElementById('vendor_id').value === '__new__';
+    document.getElementById('new_vendor_fields').classList.toggle('d-none', !isNew);
+    document.getElementById('new_vendor_type_field').classList.toggle('d-none', !isNew);
+  }
+</script>
 {% endblock %}

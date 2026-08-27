@@ -1,7 +1,7 @@
 from datetime import date
 
 from app.context_export_service import build_context_markdown
-from app.models import Appliance, ApplianceStatus, MaintenanceLog, MaintenanceTask, ServiceRecord
+from app.models import Appliance, ApplianceStatus, MaintenanceLog, MaintenanceTask, ServiceRecord, Vendor
 
 
 class TestBuildContextMarkdown:
@@ -17,6 +17,9 @@ class TestBuildContextMarkdown:
         )
         db.session.add(appliance)
         db.session.commit()
+        vendor = Vendor(household_id=household.id, name='ACME HVAC', vendor_type='hvac')
+        db.session.add(vendor)
+        db.session.commit()
 
         task = MaintenanceTask(
             appliance_id=appliance.id, title='Check filter', frequency_value=1, frequency_unit='months',
@@ -25,7 +28,8 @@ class TestBuildContextMarkdown:
         db.session.commit()
         db.session.add(MaintenanceLog(task_id=task.id, completed_at=date(2026, 1, 1), notes='Replaced filter'))
         db.session.add(ServiceRecord(
-            appliance_id=appliance.id, service_date=date(2026, 2, 1), vendor='ACME HVAC', cost=189,
+            household_id=household.id, vendor_id=vendor.id, appliance_id=appliance.id,
+            service_date=date(2026, 2, 1), cost=189,
         ))
         db.session.commit()
 
@@ -40,6 +44,7 @@ class TestBuildContextMarkdown:
         assert 'Replaced filter' in markdown
         assert 'ACME HVAC' in markdown
         assert '189.00' in markdown
+        assert '## Vendors' in markdown
 
     def test_archived_appliances_get_their_own_section(self, app, db, household):
         active = Appliance(household_id=household.id, name='Fridge', category='refrigerator')
@@ -60,6 +65,34 @@ class TestBuildContextMarkdown:
         markdown = build_context_markdown(household)
         assert '# Homebase Context Export' in markdown
         assert '(no active appliances)' in markdown
+
+    def test_vendors_section_includes_visits_with_and_without_appliance(self, app, db, household):
+        appliance = Appliance(household_id=household.id, name='Roof', category='roofing')
+        db.session.add(appliance)
+        vendor = Vendor(
+            household_id=household.id, name='Roofers Inc', vendor_type='roofing', phone='555-0100',
+        )
+        db.session.add(vendor)
+        db.session.commit()
+
+        db.session.add(ServiceRecord(
+            household_id=household.id, vendor_id=vendor.id, appliance_id=appliance.id,
+            service_date=date(2026, 4, 1), notes='Replaced shingles',
+        ))
+        db.session.add(ServiceRecord(
+            household_id=household.id, vendor_id=vendor.id, appliance_id=None,
+            service_date=date(2026, 5, 1), notes='Whole-house gutter cleaning',
+        ))
+        db.session.commit()
+
+        markdown = build_context_markdown(household)
+        vendors_section = markdown.split('## Vendors')[1]
+
+        assert 'Roofers Inc' in vendors_section
+        assert '555-0100' in vendors_section
+        assert 'Replaced shingles' in vendors_section
+        assert 'Roof' in vendors_section  # linked appliance named for the first visit
+        assert 'Whole-house gutter cleaning' in vendors_section
 
 
 class TestExportRoutes:

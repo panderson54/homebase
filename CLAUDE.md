@@ -14,13 +14,15 @@ app/
   template_service.py     # Applies a category template to a newly created appliance
   document_service.py     # Document storage + entity linking (save/fetch/unlink) — the
                            #   only module that touches Document/DocumentLink directly
+  vendor_service.py        # Resolves a vendor pick/quick-add for a service-record submission
+  vendor_types_data.py     # Suggested vendor types for the select-with-"other" picker
   context_export_service.py  # Builds the Markdown context export
   cli.py                  # `flask create-user`, `flask seed-templates`
   routes/                 # Request handlers split by domain (sub-package)
     __init__.py           # Blueprint + sub-module imports
     helpers.py            # Shared route utilities (household scoping, slugify, parse_date)
     auth.py, dashboard.py, appliances.py, documents.py,
-    maintenance.py, consumables.py, service_records.py, home.py, export.py
+    maintenance.py, consumables.py, service_records.py, vendors.py, home.py, export.py
   models.py                # SQLAlchemy ORM models
 ```
 
@@ -50,13 +52,16 @@ app/
 services or models.
 
 **Household scoping**: Every query for an appliance-owned resource
-(maintenance task, consumable, service record) must go through
-`get_household_appliance_or_404()` (directly or via the resource's own
-`appliance_id`) so one household can never read or modify another's data —
-there is no other access-control layer in this app. A `Document` isn't
-owned by an appliance directly (see `DocumentLink` in `models.py`), but it
-always carries its own `household_id` — check that instead when scoping
-access to one directly (see `document_file` in `routes/documents.py`).
+(maintenance task, consumable) must go through `get_household_appliance_or_404()`
+(directly or via the resource's own `appliance_id`) so one household can
+never read or modify another's data — there is no other access-control
+layer in this app. Vendors go through the equivalent
+`get_household_vendor_or_404()`. A `Document` isn't owned by an appliance
+directly (see `DocumentLink` in `models.py`), and a `ServiceRecord` isn't
+always owned by an appliance either (a vendor visit can stand alone) — both
+carry their own `household_id` — check that directly when scoping access
+(see `document_file` in `routes/documents.py` and
+`_get_service_record_or_404` in `routes/service_records.py`).
 
 **New Route Domains**: Add routes to the appropriate sub-module in
 `app/routes/`. If none fits, create a new sub-module and register it in

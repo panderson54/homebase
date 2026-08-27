@@ -27,6 +27,8 @@ class DocumentType(str, enum.Enum):
     receipt = 'receipt'
     floor_plan = 'floor_plan'
     inspection_report = 'inspection_report'
+    quote = 'quote'
+    invoice = 'invoice'
     other = 'other'
 
 
@@ -36,6 +38,7 @@ class DocumentEntityType(str, enum.Enum):
     hence a generic link table rather than a per-relationship foreign key."""
     appliance = 'appliance'
     home = 'home'
+    vendor = 'vendor'
 
 
 class TemplateKind(str, enum.Enum):
@@ -55,6 +58,7 @@ class Household(db.Model):
 
     users = db.relationship('User', back_populates='household', cascade='all, delete-orphan')
     appliances = db.relationship('Appliance', back_populates='household', cascade='all, delete-orphan')
+    vendors = db.relationship('Vendor', back_populates='household', cascade='all, delete-orphan')
 
     @property
     def age_years(self):
@@ -218,16 +222,42 @@ class Consumable(db.Model):
 
 
 class ServiceRecord(db.Model):
+    """A single vendor visit. Not every visit is about one specific appliance
+    (a roofer, a whole-house inspection), so appliance_id is optional — but every
+    record carries its own household_id so it can still be scoped/fetched without
+    going through a (possibly absent) appliance."""
     __tablename__ = 'service_records'
 
     id = db.Column(db.Integer, primary_key=True)
-    appliance_id = db.Column(db.Integer, db.ForeignKey('appliances.id'), nullable=False)
+    household_id = db.Column(db.Integer, db.ForeignKey('households.id'), nullable=False)
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'))
+    appliance_id = db.Column(db.Integer, db.ForeignKey('appliances.id'))
     service_date = db.Column(db.Date, nullable=False)
-    vendor = db.Column(db.String(200))
     notes = db.Column(db.Text)
     cost = db.Column(db.Numeric(10, 2))
 
+    vendor = db.relationship('Vendor', back_populates='services')
     appliance = db.relationship('Appliance', back_populates='service_records')
+
+
+class Vendor(db.Model):
+    __tablename__ = 'vendors'
+
+    id = db.Column(db.Integer, primary_key=True)
+    household_id = db.Column(db.Integer, db.ForeignKey('households.id'), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    vendor_type = db.Column(db.String(80), nullable=False)
+    contact_name = db.Column(db.String(120))
+    phone = db.Column(db.String(50))
+    email = db.Column(db.String(255))
+    website = db.Column(db.String(500))
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    household = db.relationship('Household', back_populates='vendors')
+    services = db.relationship(
+        'ServiceRecord', back_populates='vendor', order_by='ServiceRecord.service_date.desc()'
+    )
 
 
 class CategoryTemplate(db.Model):

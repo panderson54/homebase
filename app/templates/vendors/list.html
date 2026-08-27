@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}Vendors — Homebase{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h3 mb-0">Vendors</h1>
+  <a href="{{ url_for('main.vendor_new') }}" class="btn btn-primary btn-sm">Add vendor</a>
+</div>
+
+{% if vendors %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Contact</th>
+          <th>Visits</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for vendor in vendors %}
+        <tr class="cursor-pointer" onclick="window.location='{{ url_for('main.vendor_detail', vendor_id=vendor.id) }}'">
+          <td><a href="{{ url_for('main.vendor_detail', vendor_id=vendor.id) }}">{{ vendor.name }}</a></td>
+          <td>{{ vendor_type_labels.get(vendor.vendor_type, vendor.vendor_type) }}</td>
+          <td>
+            {{ vendor.contact_name or '' }}
+            {% if vendor.phone %}<div class="small text-muted">{{ vendor.phone }}</div>{% endif %}
+          </td>
+          <td>{{ vendor.services|length }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p class="text-muted">No vendors yet — add one, or they'll get created automatically the first time you quick-add one while logging a service visit.</p>
+{% endif %}
+{% endblock %}

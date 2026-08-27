@@ -3,7 +3,7 @@ from flask_login import current_user, login_required
 
 from app import db, document_service
 from app.category_templates_data import CATEGORY_LABELS
-from app.models import Appliance, ApplianceStatus, FrequencyUnit
+from app.models import Appliance, ApplianceStatus, FrequencyUnit, Vendor
 from app.routes import main_bp
 from app.routes.helpers import get_household_appliance_or_404, parse_date, slugify
 from app.template_service import apply_category_template
@@ -71,8 +71,10 @@ def appliance_new():
 def appliance_detail(appliance_id):
     appliance = get_household_appliance_or_404(appliance_id)
     documents = document_service.get_documents_for('appliance', appliance.id)
+    vendors = Vendor.query.filter_by(household_id=current_user.household_id).order_by(Vendor.name).all()
     return render_template(
-        'appliances/detail.html', appliance=appliance, documents=documents, category_labels=CATEGORY_LABELS
+        'appliances/detail.html', appliance=appliance, documents=documents, vendors=vendors,
+        category_labels=CATEGORY_LABELS,
     )
 
 
