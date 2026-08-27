@@ -1,7 +1,7 @@
 from flask import redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from app import db
+from app import db, document_service
 from app.category_templates_data import CATEGORY_LABELS
 from app.models import Appliance, ApplianceStatus, FrequencyUnit
 from app.routes import main_bp
@@ -70,8 +70,9 @@ def appliance_new():
 @login_required
 def appliance_detail(appliance_id):
     appliance = get_household_appliance_or_404(appliance_id)
+    documents = document_service.get_documents_for('appliance', appliance.id)
     return render_template(
-        'appliances/detail.html', appliance=appliance, category_labels=CATEGORY_LABELS
+        'appliances/detail.html', appliance=appliance, documents=documents, category_labels=CATEGORY_LABELS
     )
 
 

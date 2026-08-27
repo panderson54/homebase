@@ -12,12 +12,15 @@ app/
   maintenance_calc.py     # Pure due-date math (add_interval, compute_next_due, due_bucket)
   category_templates_data.py  # Seed data: category -> default tasks/consumables/pro-service interval
   template_service.py     # Applies a category template to a newly created appliance
+  document_service.py     # Document storage + entity linking (save/fetch/unlink) — the
+                           #   only module that touches Document/DocumentLink directly
+  context_export_service.py  # Builds the Markdown context export
   cli.py                  # `flask create-user`, `flask seed-templates`
   routes/                 # Request handlers split by domain (sub-package)
     __init__.py           # Blueprint + sub-module imports
     helpers.py            # Shared route utilities (household scoping, slugify, parse_date)
     auth.py, dashboard.py, appliances.py, documents.py,
-    maintenance.py, consumables.py, service_records.py
+    maintenance.py, consumables.py, service_records.py, home.py, export.py
   models.py                # SQLAlchemy ORM models
 ```
 
@@ -38,15 +41,22 @@ app/
 - Date parsing from HTML `<input type="date">` → `app/routes/helpers.parse_date()`
 - Category slug generation → `app/routes/helpers.slugify()`
 - Due-date math → `app/maintenance_calc.py` (`add_interval`, `compute_next_due`, `due_bucket`)
+- Creating/fetching/deleting a document (appliance- or home-attached) →
+  `app/document_service.py` (`save_and_link`, `get_documents_for`,
+  `unlink_and_maybe_delete`) — never construct `Document`/`DocumentLink`
+  rows directly in a route
 
 **Dependency Direction**: Routes → Services → Models. Never import routes from
 services or models.
 
 **Household scoping**: Every query for an appliance-owned resource
-(document, maintenance task, consumable, service record) must go through
+(maintenance task, consumable, service record) must go through
 `get_household_appliance_or_404()` (directly or via the resource's own
 `appliance_id`) so one household can never read or modify another's data —
-there is no other access-control layer in this app.
+there is no other access-control layer in this app. A `Document` isn't
+owned by an appliance directly (see `DocumentLink` in `models.py`), but it
+always carries its own `household_id` — check that instead when scoping
+access to one directly (see `document_file` in `routes/documents.py`).
 
 **New Route Domains**: Add routes to the appropriate sub-module in
 `app/routes/`. If none fits, create a new sub-module and register it in

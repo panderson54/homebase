@@ -34,6 +34,14 @@
             <a class="nav-link {% if request.endpoint and request.endpoint.startswith('main.appliance') %}active{% endif %}"
                href="{{ url_for('main.appliance_list') }}">Appliances</a>
           </li>
+          <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'main.home' %}active{% endif %}"
+               href="{{ url_for('main.home') }}">Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('main.context_export') %}active{% endif %}"
+               href="{{ url_for('main.context_export') }}">Export</a>
+          </li>
         </ul>
         <ul class="navbar-nav align-items-lg-center">
           <li class="nav-item me-2">

@@ -39,12 +39,12 @@
 <!-- Documents -->
 <section class="mb-5">
   <h2 class="h5">Documents</h2>
-  {% if appliance.documents %}
+  {% if documents %}
     <ul class="list-group mb-3">
-      {% for doc in appliance.documents %}
+      {% for doc in documents %}
         <li class="list-group-item d-flex justify-content-between align-items-center">
           <div>
-            <span class="badge text-bg-light border text-capitalize">{{ doc.doc_type.value }}</span>
+            <span class="badge text-bg-light border text-capitalize">{{ doc.doc_type.value.replace('_', ' ') }}</span>
             {% if doc.file_path %}
               <a href="{{ url_for('main.document_file', document_id=doc.id) }}" target="_blank">{{ doc.original_filename }}</a>
             {% else %}
@@ -54,6 +54,7 @@
           <form method="post" action="{{ url_for('main.document_delete', document_id=doc.id) }}"
                 data-confirm="Remove this document?">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="appliance_id" value="{{ appliance.id }}">
             <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
           </form>
         </li>

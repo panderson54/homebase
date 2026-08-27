@@ -1,6 +1,6 @@
 """SQLAlchemy ORM models. Thin: no business logic beyond simple property accessors."""
 import enum
-from datetime import datetime
+from datetime import date, datetime
 
 from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -25,7 +25,17 @@ class DocumentType(str, enum.Enum):
     photo = 'photo'
     manual = 'manual'
     receipt = 'receipt'
+    floor_plan = 'floor_plan'
+    inspection_report = 'inspection_report'
     other = 'other'
+
+
+class DocumentEntityType(str, enum.Enum):
+    """What a Document is linked to, via DocumentLink. A document can be linked to
+    more than one entity (and to more entity types than these two, over time) —
+    hence a generic link table rather than a per-relationship foreign key."""
+    appliance = 'appliance'
+    home = 'home'
 
 
 class TemplateKind(str, enum.Enum):
@@ -38,9 +48,17 @@ class Household(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False)
+    address = db.Column(db.String(500))
+    square_footage = db.Column(db.Integer)
+    year_built = db.Column(db.Integer)
+    notes = db.Column(db.Text)
 
     users = db.relationship('User', back_populates='household', cascade='all, delete-orphan')
     appliances = db.relationship('Appliance', back_populates='household', cascade='all, delete-orphan')
+
+    @property
+    def age_years(self):
+        return date.today().year - self.year_built if self.year_built else None
 
 
 class User(UserMixin, db.Model):
@@ -83,10 +101,6 @@ class Appliance(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     household = db.relationship('Household', back_populates='appliances')
-    documents = db.relationship(
-        'Document', back_populates='appliance', cascade='all, delete-orphan',
-        order_by='Document.uploaded_at.desc()',
-    )
     maintenance_tasks = db.relationship(
         'MaintenanceTask', back_populates='appliance', cascade='all, delete-orphan',
         order_by='MaintenanceTask.title',
@@ -113,10 +127,12 @@ class Appliance(db.Model):
 
 
 class Document(db.Model):
+    """A stored file or external link. Not tied to any one owner directly — see
+    DocumentLink for what it's attached to (an appliance, the home itself, etc.)."""
     __tablename__ = 'documents'
 
     id = db.Column(db.Integer, primary_key=True)
-    appliance_id = db.Column(db.Integer, db.ForeignKey('appliances.id'), nullable=False)
+    household_id = db.Column(db.Integer, db.ForeignKey('households.id'), nullable=False)
     doc_type = db.Column(db.Enum(DocumentType, native_enum=False), nullable=False)
     file_path = db.Column(db.String(500))
     external_url = db.Column(db.String(1000))
@@ -124,14 +140,31 @@ class Document(db.Model):
     content_type = db.Column(db.String(120))
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
-    appliance = db.relationship('Appliance', back_populates='documents')
-
     __table_args__ = (
         db.CheckConstraint(
             '(file_path IS NOT NULL AND external_url IS NULL) OR '
             '(file_path IS NULL AND external_url IS NOT NULL)',
             name='ck_document_file_xor_url',
         ),
+    )
+
+
+class DocumentLink(db.Model):
+    """Generic (entity_type, entity_id) association from a Document to whatever
+    references it. A document can have more than one link (e.g. a receipt relevant
+    to two appliances), and new entity types don't need a new table."""
+    __tablename__ = 'document_links'
+
+    id = db.Column(db.Integer, primary_key=True)
+    document_id = db.Column(db.Integer, db.ForeignKey('documents.id'), nullable=False)
+    entity_type = db.Column(db.Enum(DocumentEntityType, native_enum=False), nullable=False)
+    entity_id = db.Column(db.Integer, nullable=False)
+
+    document = db.relationship('Document')
+
+    __table_args__ = (
+        db.UniqueConstraint('document_id', 'entity_type', 'entity_id', name='uq_document_link'),
+        db.Index('ix_document_links_entity', 'entity_type', 'entity_id'),
     )
 
 
