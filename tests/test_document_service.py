@@ -55,6 +55,43 @@ class TestPrimaryPhoto:
         assert document_service.get_primary_photo_for('appliance', appliance.id).id == appliance_photo.id
 
 
+class TestPrimaryPhotoUrl:
+    def test_set_primary_photo_url_is_returned_by_get(self, db, household):
+        doc = document_service.set_primary_photo_url(household.id, 'vendor', 1, 'https://example.com/logo.png')
+        assert doc is not None
+        assert doc.external_url == 'https://example.com/logo.png'
+        primary = document_service.get_primary_photo_for('vendor', 1)
+        assert primary.id == doc.id
+
+    def test_blank_url_returns_none(self, db, household):
+        assert document_service.set_primary_photo_url(household.id, 'vendor', 1, '') is None
+
+    def test_new_url_demotes_previous_upload(self, app, db, household):
+        with app.test_request_context():
+            uploaded = document_service.set_primary_photo(household.id, 'vendor', 1, _make_file_storage())
+        url_doc = document_service.set_primary_photo_url(household.id, 'vendor', 1, 'https://example.com/logo.png')
+
+        primary = document_service.get_primary_photo_for('vendor', 1)
+        assert primary.id == url_doc.id
+        uploaded_link = DocumentLink.query.filter_by(document_id=uploaded.id).first()
+        assert uploaded_link.is_primary is False
+
+
+class TestPrimaryPhotosForMany:
+    def test_returns_dict_keyed_by_entity_id(self, app, db, household):
+        with app.test_request_context():
+            doc1 = document_service.set_primary_photo(household.id, 'vendor', 1, _make_file_storage('a.png'))
+            doc2 = document_service.set_primary_photo(household.id, 'vendor', 2, _make_file_storage('b.png'))
+
+        photos = document_service.get_primary_photos_for_many('vendor', [1, 2, 3])
+        assert photos[1].id == doc1.id
+        assert photos[2].id == doc2.id
+        assert 3 not in photos
+
+    def test_empty_ids_returns_empty_dict(self, db):
+        assert document_service.get_primary_photos_for_many('vendor', []) == {}
+
+
 class TestSaveAndLink:
     def test_creates_document_and_link_from_url(self, app, db, household):
         with app.test_request_context():
