@@ -1,7 +1,9 @@
 from datetime import date
 
 from app.context_export_service import build_context_markdown
-from app.models import Appliance, ApplianceStatus, MaintenanceLog, MaintenanceTask, ServiceRecord, Vendor
+from app.models import (
+    Appliance, ApplianceStatus, MaintenanceLog, MaintenanceTask, PaintColor, ServiceRecord, Vendor,
+)
 
 
 class TestBuildContextMarkdown:
@@ -93,6 +95,27 @@ class TestBuildContextMarkdown:
         assert 'Replaced shingles' in vendors_section
         assert 'Roof' in vendors_section  # linked appliance named for the first visit
         assert 'Whole-house gutter cleaning' in vendors_section
+
+    def test_paint_colors_section(self, app, db, household):
+        db.session.add(PaintColor(
+            household_id=household.id, location='Living room walls', manufacturer='Sherwin-Williams',
+            color_name='Agreeable Gray', color_code='SW 7029', hex_color='#D1CBC1',
+            product_url='https://example.com/agreeable-gray',
+        ))
+        db.session.commit()
+
+        markdown = build_context_markdown(household)
+        assert '## Paint Colors' in markdown
+        paint_section = markdown.split('## Paint Colors')[1]
+        assert 'Living room walls' in paint_section
+        assert 'Agreeable Gray' in paint_section
+        assert 'SW 7029' in paint_section
+        assert '#D1CBC1' in paint_section
+        assert 'https://example.com/agreeable-gray' in paint_section
+
+    def test_no_paint_colors_section_when_none_exist(self, app, db, household):
+        markdown = build_context_markdown(household)
+        assert '## Paint Colors' not in markdown
 
 
 class TestExportRoutes:

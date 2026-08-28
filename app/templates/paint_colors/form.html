@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit' if paint_color else 'Add' }} paint color — Homebase{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-4">{{ 'Edit paint color' if paint_color else 'Add paint color' }}</h1>
+
+<form method="post" class="row g-3">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="col-md-6">
+    <label class="form-label" for="location">Location</label>
+    <input type="text" class="form-control" id="location" name="location" required
+           value="{{ paint_color.location if paint_color else '' }}" placeholder="e.g. Living room walls">
+  </div>
+
+  <div class="col-md-6">
+    <label class="form-label" for="hex_color">Color</label>
+    <div class="input-group">
+      <span class="input-group-text p-1">
+        <span class="color-swatch color-swatch-sm" id="hex_preview"
+              style="background-color: {{ paint_color.hex_color if paint_color and paint_color.hex_color else '#ffffff' }};"></span>
+      </span>
+      <input type="text" class="form-control" id="hex_color" name="hex_color" placeholder="#D1CBC1"
+             value="{{ paint_color.hex_color if paint_color else '' }}" oninput="updateHexPreview()">
+    </div>
+    <div class="form-text">Format: #RRGGBB. Invalid values are saved without a swatch rather than rejected.</div>
+  </div>
+
+  <div class="col-md-4">
+    <label class="form-label" for="manufacturer">Manufacturer</label>
+    <input type="text" class="form-control" id="manufacturer" name="manufacturer"
+           value="{{ paint_color.manufacturer if paint_color else '' }}" placeholder="e.g. Sherwin-Williams">
+  </div>
+  <div class="col-md-4">
+    <label class="form-label" for="color_name">Color name</label>
+    <input type="text" class="form-control" id="color_name" name="color_name"
+           value="{{ paint_color.color_name if paint_color else '' }}" placeholder="e.g. Agreeable Gray">
+  </div>
+  <div class="col-md-4">
+    <label class="form-label" for="color_code">Color code</label>
+    <input type="text" class="form-control" id="color_code" name="color_code"
+           value="{{ paint_color.color_code if paint_color else '' }}" placeholder="e.g. SW 7029">
+  </div>
+
+  <div class="col-md-6">
+    <label class="form-label" for="product_url">Product link</label>
+    <input type="url" class="form-control" id="product_url" name="product_url"
+           value="{{ paint_color.product_url if paint_color else '' }}" placeholder="https://…">
+  </div>
+
+  <div class="col-12">
+    <label class="form-label" for="notes">Notes</label>
+    <textarea class="form-control" id="notes" name="notes" rows="3">{{ paint_color.notes if paint_color else '' }}</textarea>
+  </div>
+
+  <div class="col-12">
+    <button type="submit" class="btn btn-primary">{{ 'Save changes' if paint_color else 'Add paint color' }}</button>
+    <a href="{{ url_for('main.paint_color_detail', paint_color_id=paint_color.id) if paint_color else url_for('main.paint_color_list') }}"
+       class="btn btn-outline-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function updateHexPreview() {
+    var value = document.getElementById('hex_color').value.trim();
+    var preview = document.getElementById('hex_preview');
+    preview.style.backgroundColor = /^#[0-9A-Fa-f]{6}$/.test(value) ? value : '#ffffff';
+  }
+</script>
+{% endblock %}

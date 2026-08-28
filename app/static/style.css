@@ -9,3 +9,13 @@
 .badge-kind-pro_service {
   background-color: var(--bs-indigo, #6610f2) !important;
 }
+
+.color-swatch {
+  display: inline-block;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 4px;
+  vertical-align: middle;
+}
+
+.color-swatch-sm { width: 1.5rem; height: 1.5rem; }
+.color-swatch-lg { width: 4rem; height: 4rem; }

@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% block title %}{{ paint_color.location }} — Homebase{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div class="d-flex align-items-center gap-3">
+    {% if paint_color.hex_color %}
+      <span class="color-swatch color-swatch-lg" style="background-color: {{ paint_color.hex_color }};"></span>
+    {% endif %}
+    <div>
+      <h1 class="h3 mb-0">{{ paint_color.location }}</h1>
+      <div class="text-muted">
+        {{ paint_color.manufacturer or '' }}
+        {% if paint_color.color_name %} — {{ paint_color.color_name }}{% endif %}
+        {% if paint_color.color_code %} <span class="small">({{ paint_color.color_code }})</span>{% endif %}
+      </div>
+    </div>
+  </div>
+  <div>
+    <a href="{{ url_for('main.paint_color_edit', paint_color_id=paint_color.id) }}" class="btn btn-outline-secondary btn-sm">Edit</a>
+    <form method="post" action="{{ url_for('main.paint_color_delete', paint_color_id=paint_color.id) }}"
+          class="d-inline" data-confirm="Remove {{ paint_color.location }}? This can't be undone.">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-outline-danger btn-sm">Remove</button>
+    </form>
+  </div>
+</div>
+
+<div class="row g-2 mb-4 text-muted small">
+  {% if paint_color.hex_color %}<div class="col-auto">Color: {{ paint_color.hex_color }}</div>{% endif %}
+  {% if paint_color.product_url %}
+    <div class="col-auto"><a href="{{ paint_color.product_url }}" target="_blank" rel="noopener">Product page</a></div>
+  {% endif %}
+</div>
+{% if paint_color.notes %}<p>{{ paint_color.notes }}</p>{% endif %}
+
+<!-- Documents -->
+<section class="mb-5">
+  <h2 class="h5">Photos & documents</h2>
+  {% if documents %}
+    <ul class="list-group mb-3">
+      {% for doc in documents %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            <span class="badge text-bg-light border text-capitalize">{{ doc.doc_type.value.replace('_', ' ') }}</span>
+            {% if doc.file_path %}
+              <a href="{{ url_for('main.document_file', document_id=doc.id) }}" target="_blank">{{ doc.original_filename }}</a>
+            {% else %}
+              <a href="{{ doc.external_url }}" target="_blank" rel="noopener">{{ doc.external_url }}</a>
+            {% endif %}
+          </div>
+          <form method="post" action="{{ url_for('main.paint_color_document_delete', paint_color_id=paint_color.id, document_id=doc.id) }}"
+                data-confirm="Remove this document?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+          </form>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="text-muted">No photos or documents yet.</p>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('main.paint_color_document_upload', paint_color_id=paint_color.id) }}"
+        enctype="multipart/form-data" class="row g-2 align-items-end">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="col-auto">
+      <label class="form-label">Type</label>
+      <select class="form-select form-select-sm" name="doc_type">
+        <option value="photo">Photo</option>
+        <option value="receipt">Receipt</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+    <div class="col-auto">
+      <label class="form-label">File (PDF/PNG/JPG/WEBP)</label>
+      <input type="file" class="form-control form-control-sm" name="file">
+    </div>
+    <div class="col-auto">
+      <label class="form-label">or link</label>
+      <input type="url" class="form-control form-control-sm" name="external_url" placeholder="https://…">
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-sm btn-primary">Add</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

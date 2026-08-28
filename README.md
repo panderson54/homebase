@@ -30,13 +30,16 @@ architecture/build plan this was scaffolded from.
   age), notes, and documents about the property itself (floor plans,
   surveys, inspection reports)
 - A one-click context export (`/export`): a verbose Markdown snapshot of
-  the whole household — home profile, every appliance's full history, and
-  the vendor directory below — sized to fit comfortably in an LLM context
-  window, viewable with a copy button or downloadable as a `.md` file
+  the whole household — home profile, every appliance's full history, the
+  vendor directory, and paint colors — sized to fit comfortably in an LLM
+  context window, viewable with a copy button or downloadable as a `.md` file
 - A vendor directory: contact details and a type (HVAC, plumbing, etc.)
   per vendor, their own quotes/invoices, and a full service-visit history
   that can optionally link to a specific appliance — so "who did I use for
   X" is always answerable
+- Paint colors: what was painted where, with manufacturer/color
+  name/code, a hex value rendered as an actual color swatch, a product
+  link, and photos — independent of appliances/vendors
 - Simple multi-user login (Flask-Login) — accounts are created by hand via
   a CLI command, no self-serve signup
 
@@ -144,3 +147,8 @@ roof repair, isn't about any single appliance) but always carries its own
 pick an existing vendor or quick-create one inline
 (`app/vendor_service.py`); logging one from a vendor's own page skips that
 step since the vendor is already known.
+
+`paint_colors` is a household-scoped, standalone list (one row per
+color+location pair — the same color used in two rooms is just entered
+twice) with a `hex_color` validated server-side (`app/routes/helpers.parse_hex_color`)
+against `#RRGGBB` before it's ever rendered as a CSS swatch.

@@ -39,6 +39,7 @@ class DocumentEntityType(str, enum.Enum):
     appliance = 'appliance'
     home = 'home'
     vendor = 'vendor'
+    paint_color = 'paint_color'
 
 
 class TemplateKind(str, enum.Enum):
@@ -59,6 +60,7 @@ class Household(db.Model):
     users = db.relationship('User', back_populates='household', cascade='all, delete-orphan')
     appliances = db.relationship('Appliance', back_populates='household', cascade='all, delete-orphan')
     vendors = db.relationship('Vendor', back_populates='household', cascade='all, delete-orphan')
+    paint_colors = db.relationship('PaintColor', back_populates='household', cascade='all, delete-orphan')
 
     @property
     def age_years(self):
@@ -258,6 +260,26 @@ class Vendor(db.Model):
     services = db.relationship(
         'ServiceRecord', back_populates='vendor', order_by='ServiceRecord.service_date.desc()'
     )
+
+
+class PaintColor(db.Model):
+    """A paint color used somewhere in the home. Deliberately independent of
+    appliances/vendors — one row per (color, location) pair; the same color used
+    in two rooms is just entered twice, rather than modeling a many-to-many."""
+    __tablename__ = 'paint_colors'
+
+    id = db.Column(db.Integer, primary_key=True)
+    household_id = db.Column(db.Integer, db.ForeignKey('households.id'), nullable=False)
+    location = db.Column(db.String(120), nullable=False)
+    manufacturer = db.Column(db.String(120))
+    color_name = db.Column(db.String(120))
+    color_code = db.Column(db.String(80))
+    hex_color = db.Column(db.String(7))
+    product_url = db.Column(db.String(500))
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    household = db.relationship('Household', back_populates='paint_colors')
 
 
 class CategoryTemplate(db.Model):

@@ -101,6 +101,30 @@ def _vendor_section(vendor):
     return lines
 
 
+def _paint_color_section(paint_color):
+    header = paint_color.location
+    if paint_color.color_name:
+        header += f' — {paint_color.color_name}'
+    lines = [f'### {header}', '']
+    for field_label, value in (
+        ('Manufacturer', paint_color.manufacturer),
+        ('Color code', paint_color.color_code),
+        ('Hex color', paint_color.hex_color),
+        ('Product link', paint_color.product_url),
+    ):
+        if value:
+            lines.append(f'- {field_label}: {value}')
+    if paint_color.notes:
+        lines.append(f'- Notes: {paint_color.notes}')
+    lines.append('')
+
+    lines.append('#### Documents')
+    lines.extend(_document_lines(document_service.get_documents_for('paint_color', paint_color.id)))
+    lines.append('')
+
+    return lines
+
+
 def _appliance_section(appliance):
     label = CATEGORY_LABELS.get(appliance.category, appliance.category)
     lines = [f'### {appliance.name} ({label})', '']
@@ -201,5 +225,12 @@ def build_context_markdown(household):
         lines.append('')
         for vendor in vendors:
             lines.extend(_vendor_section(vendor))
+
+    paint_colors = sorted(household.paint_colors, key=lambda p: p.location)
+    if paint_colors:
+        lines.append('## Paint Colors')
+        lines.append('')
+        for paint_color in paint_colors:
+            lines.extend(_paint_color_section(paint_color))
 
     return '\n'.join(lines)

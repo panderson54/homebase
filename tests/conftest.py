@@ -69,6 +69,15 @@ def vendor(db, household):
 
 
 @pytest.fixture
+def paint_color(db, household):
+    from app.models import PaintColor
+    p = PaintColor(household_id=household.id, location='Living room walls', hex_color='#D1CBC1')
+    db.session.add(p)
+    db.session.commit()
+    return p
+
+
+@pytest.fixture
 def seeded_templates(db):
     """A minimal category_templates fixture (furnace only) for template-application tests."""
     from app.models import CategoryTemplate, FrequencyUnit, TemplateKind
