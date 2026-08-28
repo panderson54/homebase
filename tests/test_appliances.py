@@ -1,4 +1,15 @@
+import io
+
+from PIL import Image
+
 from app.models import Appliance, ApplianceStatus, FrequencyUnit, Household, TemplateKind, CategoryTemplate
+
+
+def _make_png_bytes():
+    buf = io.BytesIO()
+    Image.new('RGB', (4, 4), color='blue').save(buf, format='PNG')
+    buf.seek(0)
+    return buf
 
 
 class TestApplianceCreate:
@@ -117,3 +128,31 @@ class TestApplianceEdit:
         db.session.refresh(appliance)
         assert appliance.name == 'Basement Furnace'
         assert appliance.location == 'Basement'
+
+
+class TestApplianceProfilePhoto:
+    def test_upload_sets_primary_photo(self, logged_in_client, db, household):
+        appliance = Appliance(household_id=household.id, name='Furnace', category='furnace')
+        db.session.add(appliance)
+        db.session.commit()
+
+        resp = logged_in_client.post(f'/appliances/{appliance.id}/photo', data={
+            'photo': (_make_png_bytes(), 'furnace.png'),
+        }, content_type='multipart/form-data')
+        assert resp.status_code == 302
+
+        page = logged_in_client.get(f'/appliances/{appliance.id}')
+        assert b'profile-photo"' in page.data
+
+    def test_upload_404_for_other_household(self, logged_in_client, db):
+        other = Household(name='Other')
+        db.session.add(other)
+        db.session.commit()
+        appliance = Appliance(household_id=other.id, name='Furnace', category='furnace')
+        db.session.add(appliance)
+        db.session.commit()
+
+        resp = logged_in_client.post(f'/appliances/{appliance.id}/photo', data={
+            'photo': (_make_png_bytes(), 'furnace.png'),
+        }, content_type='multipart/form-data')
+        assert resp.status_code == 404

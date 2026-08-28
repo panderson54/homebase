@@ -83,6 +83,42 @@ def save_and_link(household_id, entity_type, entity_id, doc_type, file_storage=N
     return document
 
 
+def set_primary_photo(household_id, entity_type, entity_id, file_storage):
+    """Upload a photo and mark it as the entity's one profile picture, demoting
+    any previous primary photo (they stay linked as ordinary photos, just not
+    the featured one). Returns the new Document, or None if the upload was
+    rejected (bad extension or missing file)."""
+    document = save_and_link(household_id, entity_type, entity_id, DocumentType.photo.value, file_storage=file_storage)
+    if document is None:
+        return None
+
+    entity_type_enum = DocumentEntityType(entity_type)
+    DocumentLink.query.filter(
+        DocumentLink.entity_type == entity_type_enum,
+        DocumentLink.entity_id == entity_id,
+        DocumentLink.document_id != document.id,
+        DocumentLink.is_primary.is_(True),
+    ).update({'is_primary': False})
+    DocumentLink.query.filter_by(
+        document_id=document.id, entity_type=entity_type_enum, entity_id=entity_id
+    ).update({'is_primary': True})
+    db.session.commit()
+    return document
+
+
+def get_primary_photo_for(entity_type, entity_id):
+    """The entity's featured photo, or None if it doesn't have one set."""
+    return (
+        Document.query.join(DocumentLink, DocumentLink.document_id == Document.id)
+        .filter(
+            DocumentLink.entity_type == DocumentEntityType(entity_type),
+            DocumentLink.entity_id == entity_id,
+            DocumentLink.is_primary.is_(True),
+        )
+        .first()
+    )
+
+
 def get_documents_for(entity_type, entity_id):
     """All documents linked to one entity, newest first."""
     return (

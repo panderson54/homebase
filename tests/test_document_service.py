@@ -14,6 +14,47 @@ def _make_file_storage(name='plate.png'):
     return FileStorage(stream=buf, filename=name)
 
 
+class TestPrimaryPhoto:
+    def test_set_primary_photo_is_returned_by_get(self, app, db, household):
+        with app.test_request_context():
+            doc = document_service.set_primary_photo(household.id, 'home', household.id, _make_file_storage())
+        assert doc is not None
+        primary = document_service.get_primary_photo_for('home', household.id)
+        assert primary.id == doc.id
+
+    def test_no_primary_photo_returns_none(self, db, household):
+        assert document_service.get_primary_photo_for('home', household.id) is None
+
+    def test_setting_new_primary_demotes_previous_one(self, app, db, household):
+        with app.test_request_context():
+            first = document_service.set_primary_photo(household.id, 'home', household.id, _make_file_storage('a.png'))
+            second = document_service.set_primary_photo(household.id, 'home', household.id, _make_file_storage('b.png'))
+
+        primary = document_service.get_primary_photo_for('home', household.id)
+        assert primary.id == second.id
+        first_link = DocumentLink.query.filter_by(document_id=first.id).first()
+        assert first_link.is_primary is False
+        # the demoted photo is still an ordinary linked document, not deleted
+        assert db.session.get(Document, first.id) is not None
+
+    def test_rejects_bad_extension(self, app, db, household):
+        with app.test_request_context():
+            doc = document_service.set_primary_photo(household.id, 'home', household.id, _make_file_storage('malware.exe'))
+        assert doc is None
+
+    def test_primary_photo_is_scoped_per_entity(self, app, db, household):
+        appliance = Appliance(household_id=household.id, name='Furnace', category='furnace')
+        db.session.add(appliance)
+        db.session.commit()
+        with app.test_request_context():
+            home_photo = document_service.set_primary_photo(household.id, 'home', household.id, _make_file_storage())
+            appliance_photo = document_service.set_primary_photo(
+                household.id, 'appliance', appliance.id, _make_file_storage()
+            )
+        assert document_service.get_primary_photo_for('home', household.id).id == home_photo.id
+        assert document_service.get_primary_photo_for('appliance', appliance.id).id == appliance_photo.id
+
+
 class TestSaveAndLink:
     def test_creates_document_and_link_from_url(self, app, db, household):
         with app.test_request_context():

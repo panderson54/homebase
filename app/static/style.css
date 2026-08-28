@@ -467,6 +467,29 @@ a.text-muted:hover { color: #09090b !important; }
 .color-swatch-lg { width: 4rem; height: 4rem; }
 .color-swatch-xl { width: 8rem; height: 8rem; }
 
+.profile-photo {
+  width: 6rem;
+  height: 6rem;
+  object-fit: cover;
+  border-radius: var(--bs-border-radius-lg);
+  border: 1px solid var(--bs-border-color);
+  background-color: var(--hb-muted-bg);
+}
+.profile-photo-placeholder {
+  width: 6rem;
+  height: 6rem;
+  border-radius: var(--bs-border-radius-lg);
+  border: 1px dashed var(--bs-border-color);
+  background-color: var(--hb-muted-bg);
+  color: var(--hb-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  text-align: center;
+  padding: 0.25rem;
+}
+
 /* ── 16. Dark mode ──────────────────────────────────────────── */
 [data-bs-theme="dark"] {
   --bs-body-color:          #fafafa;

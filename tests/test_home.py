@@ -81,6 +81,26 @@ class TestHomeTabs:
         assert b'Household name' in resp.data
 
 
+class TestHomeProfilePhoto:
+    def test_upload_sets_primary_photo(self, logged_in_client, db, household):
+        resp = logged_in_client.post('/home/photo', data={
+            'photo': (_make_png_bytes(), 'house.png'),
+        }, content_type='multipart/form-data')
+        assert resp.status_code == 302
+
+        page = logged_in_client.get('/home')
+        assert b'profile-photo"' in page.data
+
+    def test_upload_rejects_bad_extension(self, logged_in_client, db, household):
+        resp = logged_in_client.post('/home/photo', data={
+            'photo': (io.BytesIO(b'not an image'), 'notes.txt'),
+        }, content_type='multipart/form-data')
+        assert resp.status_code == 302
+
+        page = logged_in_client.get('/home')
+        assert b'profile-photo-placeholder' in page.data
+
+
 class TestHomeDocuments:
     def test_upload_link_and_list(self, logged_in_client, db, household):
         resp = logged_in_client.post('/home/documents', data={

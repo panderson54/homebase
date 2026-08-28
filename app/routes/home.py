@@ -23,6 +23,7 @@ def home():
         return redirect(url_for('main.home'))
 
     documents = document_service.get_documents_for('home', household.id)
+    primary_photo = document_service.get_primary_photo_for('home', household.id)
     paint_colors = PaintColor.query.filter_by(
         household_id=household.id
     ).order_by(PaintColor.location).all()
@@ -31,9 +32,19 @@ def home():
     if active_tab not in ('paint', 'rooms'):
         active_tab = 'overview'
     return render_template(
-        'home/home.html', household=household, documents=documents,
+        'home/home.html', household=household, documents=documents, primary_photo=primary_photo,
         paint_colors=paint_colors, rooms=rooms, active_tab=active_tab,
     )
+
+
+@main_bp.route('/home/photo', methods=['POST'])
+@login_required
+def home_photo_upload():
+    household = current_user.household
+    document = document_service.set_primary_photo(household.id, 'home', household.id, request.files.get('photo'))
+    if document is None:
+        flash('Choose a PNG, JPG, or WEBP image.', 'danger')
+    return redirect(url_for('main.home'))
 
 
 @main_bp.route('/home/documents', methods=['POST'])

@@ -1,4 +1,4 @@
-from flask import redirect, render_template, request, url_for
+from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app import db, document_service
@@ -81,11 +81,24 @@ def appliance_new():
 def appliance_detail(appliance_id):
     appliance = get_household_appliance_or_404(appliance_id)
     documents = document_service.get_documents_for('appliance', appliance.id)
+    primary_photo = document_service.get_primary_photo_for('appliance', appliance.id)
     vendors = Vendor.query.filter_by(household_id=current_user.household_id).order_by(Vendor.name).all()
     return render_template(
-        'appliances/detail.html', appliance=appliance, documents=documents, vendors=vendors,
-        category_labels=CATEGORY_LABELS,
+        'appliances/detail.html', appliance=appliance, documents=documents, primary_photo=primary_photo,
+        vendors=vendors, category_labels=CATEGORY_LABELS,
     )
+
+
+@main_bp.route('/appliances/<int:appliance_id>/photo', methods=['POST'])
+@login_required
+def appliance_photo_upload(appliance_id):
+    appliance = get_household_appliance_or_404(appliance_id)
+    document = document_service.set_primary_photo(
+        appliance.household_id, 'appliance', appliance.id, request.files.get('photo')
+    )
+    if document is None:
+        flash('Choose a PNG, JPG, or WEBP image.', 'danger')
+    return redirect(url_for('main.appliance_detail', appliance_id=appliance.id))
 
 
 @main_bp.route('/appliances/<int:appliance_id>/edit', methods=['GET', 'POST'])

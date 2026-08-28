@@ -171,6 +171,7 @@ class DocumentLink(db.Model):
     document_id = db.Column(db.Integer, db.ForeignKey('documents.id'), nullable=False)
     entity_type = db.Column(db.Enum(DocumentEntityType, native_enum=False), nullable=False)
     entity_id = db.Column(db.Integer, nullable=False)
+    is_primary = db.Column(db.Boolean, nullable=False, default=False)
 
     document = db.relationship('Document')
 

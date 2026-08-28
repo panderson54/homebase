@@ -17,6 +17,22 @@
 </ul>
 
 {% if active_tab == 'overview' %}
+<div class="d-flex align-items-center gap-3 mb-4">
+  {% if primary_photo %}
+    <img src="{{ url_for('main.document_file', document_id=primary_photo.id) }}" class="profile-photo" alt="">
+  {% else %}
+    <div class="profile-photo-placeholder">No photo</div>
+  {% endif %}
+  <form method="post" action="{{ url_for('main.home_photo_upload') }}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="form-label" for="photo">Profile picture</label>
+    <div class="input-group input-group-sm">
+      <input type="file" class="form-control form-control-sm" id="photo" name="photo" accept=".png,.jpg,.jpeg,.webp">
+      <button type="submit" class="btn btn-sm btn-outline-secondary">Upload</button>
+    </div>
+  </form>
+</div>
+
 <form method="post" class="row g-3 mb-5">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
