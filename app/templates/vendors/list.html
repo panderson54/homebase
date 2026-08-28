@@ -12,6 +12,7 @@
     <table class="table table-hover align-middle">
       <thead>
         <tr>
+          <th></th>
           <th>Name</th>
           <th>Type</th>
           <th>Contact</th>
@@ -21,11 +22,18 @@
       <tbody>
         {% for vendor in vendors %}
         <tr class="cursor-pointer" onclick="window.location='{{ url_for('main.vendor_detail', vendor_id=vendor.id) }}'">
+          <td>
+            {% set logo = vendor_logos.get(vendor.id) %}
+            {% if logo %}
+              <img src="{{ url_for('main.document_file', document_id=logo.id) if logo.file_path else logo.external_url }}"
+                   alt="" width="24" height="24" class="rounded">
+            {% endif %}
+          </td>
           <td><a href="{{ url_for('main.vendor_detail', vendor_id=vendor.id) }}">{{ vendor.name }}</a></td>
           <td>{{ vendor_type_labels.get(vendor.vendor_type, vendor.vendor_type) }}</td>
           <td>
             {{ vendor.contact_name or '' }}
-            {% if vendor.phone %}<div class="small text-muted">{{ vendor.phone }}</div>{% endif %}
+            {% if vendor.phone %}<div class="small text-muted">{{ vendor.phone|phonefmt }}</div>{% endif %}
           </td>
           <td>{{ vendor.services|length }}</td>
         </tr>

@@ -4,6 +4,35 @@
 {% block content %}
 <h1 class="h3 mb-4">Home</h1>
 
+<ul class="nav nav-tabs mb-4">
+  <li class="nav-item">
+    <a class="nav-link {{ 'active' if active_tab == 'overview' }}" href="{{ url_for('main.home') }}">Overview</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {{ 'active' if active_tab == 'paint' }}" href="{{ url_for('main.home', tab='paint') }}">Paint</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {{ 'active' if active_tab == 'rooms' }}" href="{{ url_for('main.home', tab='rooms') }}">Rooms</a>
+  </li>
+</ul>
+
+{% if active_tab == 'overview' %}
+<div class="d-flex align-items-center gap-3 mb-4">
+  {% if primary_photo %}
+    <img src="{{ url_for('main.document_file', document_id=primary_photo.id) }}" class="profile-photo" alt="">
+  {% else %}
+    <div class="profile-photo-placeholder">No photo</div>
+  {% endif %}
+  <form method="post" action="{{ url_for('main.home_photo_upload') }}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label class="form-label" for="photo">Profile picture</label>
+    <div class="input-group input-group-sm">
+      <input type="file" class="form-control form-control-sm" id="photo" name="photo" accept=".png,.jpg,.jpeg,.webp">
+      <button type="submit" class="btn btn-sm btn-outline-secondary">Upload</button>
+    </div>
+  </form>
+</div>
+
 <form method="post" class="row g-3 mb-5">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
@@ -93,4 +122,89 @@
     </div>
   </form>
 </section>
+
+{% elif active_tab == 'paint' %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <p class="text-muted small mb-0">Paint colors used around the home.</p>
+  <a href="{{ url_for('main.paint_color_new') }}" class="btn btn-primary btn-sm">Add paint color</a>
+</div>
+
+{% if paint_colors %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Location(s)</th>
+          <th>Manufacturer</th>
+          <th>Color</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for paint in paint_colors %}
+        <tr class="cursor-pointer" onclick="window.location='{{ url_for('main.paint_color_detail', paint_color_id=paint.id) }}'">
+          <td>
+            {% if paint.hex_color %}
+              <span class="color-swatch color-swatch-sm" style="background-color: {{ paint.hex_color }};"></span>
+            {% endif %}
+          </td>
+          <td><a href="{{ url_for('main.paint_color_detail', paint_color_id=paint.id) }}">{{ paint.location }}</a></td>
+          <td>{{ paint.manufacturer or '' }}</td>
+          <td>{{ paint.color_name or '' }} {% if paint.color_code %}<span class="text-muted small">{{ paint.color_code }}</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p class="text-muted">No paint colors tracked yet.</p>
+{% endif %}
+
+{% elif active_tab == 'rooms' %}
+<p class="text-muted small">Rooms let you tie appliances and paint colors to a specific place in the house.</p>
+
+{% if rooms %}
+  {% for floor, floor_rooms in rooms|groupby('floor') %}
+    <h2 class="h6 text-muted text-uppercase mt-4 mb-2" style="letter-spacing: .05em;">{{ floor or 'No floor set' }}</h2>
+    <div class="list-group mb-3">
+      {% for room in floor_rooms %}
+        <div class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            <strong>{{ room.name }}</strong>
+            <span class="text-muted small">
+              {{ room.appliances|length }} appliance{{ 's' if room.appliances|length != 1 }},
+              {{ room.paint_colors|length }} paint color{{ 's' if room.paint_colors|length != 1 }}
+            </span>
+          </div>
+          <div class="d-flex gap-2">
+            <a href="{{ url_for('main.room_edit', room_id=room.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+            <form method="post" action="{{ url_for('main.room_delete', room_id=room.id) }}"
+                  data-confirm="Remove {{ room.name }}? Appliances and paint colors assigned to it will become unassigned.">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+            </form>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endfor %}
+{% else %}
+  <p class="text-muted">No rooms yet.</p>
+{% endif %}
+
+<form method="post" action="{{ url_for('main.room_new') }}" class="row g-2 align-items-end">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="col-auto">
+    <label class="form-label">Name</label>
+    <input type="text" class="form-control form-control-sm" name="name" placeholder="e.g. Kitchen" required>
+  </div>
+  <div class="col-auto">
+    <label class="form-label">Floor</label>
+    <input type="text" class="form-control form-control-sm" name="floor" placeholder="e.g. 1st floor">
+  </div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-sm btn-primary">Add room</button>
+  </div>
+</form>
+{% endif %}
 {% endblock %}

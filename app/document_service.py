@@ -83,6 +83,79 @@ def save_and_link(household_id, entity_type, entity_id, doc_type, file_storage=N
     return document
 
 
+def _promote_to_primary(document, entity_type, entity_id):
+    """Mark `document`'s link as the entity's primary photo, demoting whatever
+    was primary before (it stays linked as an ordinary photo, just not the
+    featured one)."""
+    entity_type_enum = DocumentEntityType(entity_type)
+    DocumentLink.query.filter(
+        DocumentLink.entity_type == entity_type_enum,
+        DocumentLink.entity_id == entity_id,
+        DocumentLink.document_id != document.id,
+        DocumentLink.is_primary.is_(True),
+    ).update({'is_primary': False})
+    DocumentLink.query.filter_by(
+        document_id=document.id, entity_type=entity_type_enum, entity_id=entity_id
+    ).update({'is_primary': True})
+    db.session.commit()
+
+
+def set_primary_photo(household_id, entity_type, entity_id, file_storage):
+    """Upload a photo and mark it as the entity's one profile picture. Returns
+    the new Document, or None if the upload was rejected (bad extension or
+    missing file)."""
+    document = save_and_link(household_id, entity_type, entity_id, DocumentType.photo.value, file_storage=file_storage)
+    if document is None:
+        return None
+    _promote_to_primary(document, entity_type, entity_id)
+    return document
+
+
+def set_primary_photo_url(household_id, entity_type, entity_id, external_url):
+    """Same as set_primary_photo, but for a photo hosted elsewhere (e.g. a
+    vendor's favicon) rather than an upload. Returns None if `external_url`
+    is falsy."""
+    document = save_and_link(
+        household_id, entity_type, entity_id, DocumentType.photo.value, external_url=external_url
+    )
+    if document is None:
+        return None
+    _promote_to_primary(document, entity_type, entity_id)
+    return document
+
+
+def get_primary_photo_for(entity_type, entity_id):
+    """The entity's featured photo, or None if it doesn't have one set."""
+    return (
+        Document.query.join(DocumentLink, DocumentLink.document_id == Document.id)
+        .filter(
+            DocumentLink.entity_type == DocumentEntityType(entity_type),
+            DocumentLink.entity_id == entity_id,
+            DocumentLink.is_primary.is_(True),
+        )
+        .first()
+    )
+
+
+def get_primary_photos_for_many(entity_type, entity_ids):
+    """Bulk form of get_primary_photo_for, for list pages — one query instead
+    of one per row. Returns {entity_id: Document} for whichever ids have a
+    primary photo set."""
+    if not entity_ids:
+        return {}
+    rows = (
+        db.session.query(DocumentLink.entity_id, Document)
+        .join(Document, DocumentLink.document_id == Document.id)
+        .filter(
+            DocumentLink.entity_type == DocumentEntityType(entity_type),
+            DocumentLink.entity_id.in_(entity_ids),
+            DocumentLink.is_primary.is_(True),
+        )
+        .all()
+    )
+    return {entity_id: document for entity_id, document in rows}
+
+
 def get_documents_for(entity_type, entity_id):
     """All documents linked to one entity, newest first."""
     return (

@@ -3,11 +3,27 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-start mb-3">
-  <div>
-    <h1 class="h3 mb-0">{{ appliance.name }}</h1>
-    <div class="text-muted">
-      {{ category_labels.get(appliance.category, appliance.category) }}
-      {% if appliance.location %} · {{ appliance.location }}{% endif %}
+  <div class="d-flex align-items-center gap-3">
+    {% if primary_photo %}
+      <img src="{{ url_for('main.document_file', document_id=primary_photo.id) }}" class="profile-photo" alt="">
+    {% else %}
+      <div class="profile-photo-placeholder">No photo</div>
+    {% endif %}
+    <div>
+      <h1 class="h3 mb-0">{{ appliance.name }}</h1>
+      <div class="text-muted">
+        {{ category_labels.get(appliance.category, appliance.category) }}
+        {% if appliance.room %} · <a href="{{ url_for('main.home', tab='rooms') }}" class="text-muted">{{ appliance.room.name }}</a>{% endif %}
+        {% if appliance.location %} · {{ appliance.location }}{% endif %}
+      </div>
+      <form method="post" action="{{ url_for('main.appliance_photo_upload', appliance_id=appliance.id) }}"
+            enctype="multipart/form-data" class="mt-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="input-group input-group-sm">
+          <input type="file" class="form-control form-control-sm" name="photo" accept=".png,.jpg,.jpeg,.webp">
+          <button type="submit" class="btn btn-sm btn-outline-secondary">Upload photo</button>
+        </div>
+      </form>
     </div>
   </div>
   <div>
@@ -31,6 +47,7 @@
   {% if appliance.make %}<div class="col-auto">Make: {{ appliance.make }}</div>{% endif %}
   {% if appliance.model_number %}<div class="col-auto">Model: {{ appliance.model_number }}</div>{% endif %}
   {% if appliance.serial_number %}<div class="col-auto">Serial: {{ appliance.serial_number }}</div>{% endif %}
+  {% if appliance.manufacture_year %}<div class="col-auto">Manufactured: {{ appliance.manufacture_year }}</div>{% endif %}
   {% if appliance.install_date %}<div class="col-auto">Installed: {{ appliance.install_date|datefmt }}</div>{% endif %}
   {% if appliance.purchase_date %}<div class="col-auto">Purchased: {{ appliance.purchase_date|datefmt }}</div>{% endif %}
 </div>
@@ -250,14 +267,17 @@
             {% if record.vendor %} —
               <a href="{{ url_for('main.vendor_detail', vendor_id=record.vendor.id) }}">{{ record.vendor.name }}</a>
             {% endif %}
-            {% if record.cost %} <span class="text-muted small">${{ '%.2f'|format(record.cost) }}</span>{% endif %}
+            {% if record.cost %} <span class="text-muted small font-tabular">{{ record.cost|currency }}</span>{% endif %}
             {% if record.notes %}<div class="small text-muted">{{ record.notes }}</div>{% endif %}
           </div>
-          <form method="post" action="{{ url_for('main.service_record_delete', record_id=record.id) }}"
-                data-confirm="Delete this service record?">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
-          </form>
+          <div class="d-flex gap-2">
+            <a href="{{ url_for('main.service_record_edit', record_id=record.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+            <form method="post" action="{{ url_for('main.service_record_delete', record_id=record.id) }}"
+                  data-confirm="Delete this service record?">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+            </form>
+          </div>
         </li>
       {% endfor %}
     </ul>

@@ -2,13 +2,26 @@ from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app import db, document_service
-from app.models import PaintColor
+from app.models import PaintColor, Room
 from app.routes import main_bp
 from app.routes.helpers import get_household_paint_color_or_404, parse_hex_color
 
 
+def _normalize_locations(raw):
+    return ', '.join(loc.strip() for loc in raw.split(',') if loc.strip())
+
+
+def _parse_room_id(form, household_id):
+    room_id = form.get('room_id', '').strip()
+    if not room_id:
+        return None
+    room = Room.query.filter_by(id=room_id, household_id=household_id).first()
+    return room.id if room else None
+
+
 def _apply_form(paint_color, form):
-    paint_color.location = form.get('location', '').strip()
+    paint_color.location = _normalize_locations(form.get('location', ''))
+    paint_color.room_id = _parse_room_id(form, paint_color.household_id)
     paint_color.manufacturer = form.get('manufacturer', '').strip() or None
     paint_color.color_name = form.get('color_name', '').strip() or None
     paint_color.color_code = form.get('color_code', '').strip() or None
@@ -25,10 +38,8 @@ def _apply_form(paint_color, form):
 @main_bp.route('/paint-colors')
 @login_required
 def paint_color_list():
-    paint_colors = PaintColor.query.filter_by(
-        household_id=current_user.household_id
-    ).order_by(PaintColor.location).all()
-    return render_template('paint_colors/list.html', paint_colors=paint_colors)
+    """Standalone list page folded into the Home page's Paint tab."""
+    return redirect(url_for('main.home', tab='paint'))
 
 
 @main_bp.route('/paint-colors/new', methods=['GET', 'POST'])
@@ -41,7 +52,8 @@ def paint_color_new():
         db.session.commit()
         return redirect(url_for('main.paint_color_detail', paint_color_id=paint_color.id))
 
-    return render_template('paint_colors/form.html', paint_color=None)
+    rooms = Room.query.filter_by(household_id=current_user.household_id).order_by(Room.floor, Room.name).all()
+    return render_template('paint_colors/form.html', paint_color=None, rooms=rooms)
 
 
 @main_bp.route('/paint-colors/<int:paint_color_id>')
@@ -62,7 +74,8 @@ def paint_color_edit(paint_color_id):
         db.session.commit()
         return redirect(url_for('main.paint_color_detail', paint_color_id=paint_color.id))
 
-    return render_template('paint_colors/form.html', paint_color=paint_color)
+    rooms = Room.query.filter_by(household_id=paint_color.household_id).order_by(Room.floor, Room.name).all()
+    return render_template('paint_colors/form.html', paint_color=paint_color, rooms=rooms)
 
 
 @main_bp.route('/paint-colors/<int:paint_color_id>/documents', methods=['POST'])
@@ -101,4 +114,4 @@ def paint_color_delete(paint_color_id):
         document_service.unlink_and_maybe_delete(document.id, 'paint_color', paint_color.id)
     db.session.delete(paint_color)
     db.session.commit()
-    return redirect(url_for('main.paint_color_list'))
+    return redirect(url_for('main.home', tab='paint'))

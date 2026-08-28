@@ -1,4 +1,15 @@
+import io
+
+from PIL import Image
+
 from app.models import Appliance, ApplianceStatus, FrequencyUnit, Household, TemplateKind, CategoryTemplate
+
+
+def _make_png_bytes():
+    buf = io.BytesIO()
+    Image.new('RGB', (4, 4), color='blue').save(buf, format='PNG')
+    buf.seek(0)
+    return buf
 
 
 class TestApplianceCreate:
@@ -36,6 +47,32 @@ class TestApplianceCreate:
         assert len(appliance.maintenance_tasks) == 1
         assert appliance.maintenance_tasks[0].title == 'Check filter'
         assert len(appliance.consumables) == 1
+
+    def test_create_with_documents(self, logged_in_client, user):
+        from app import document_service
+        resp = logged_in_client.post('/appliances/new', data={
+            'name': 'Water Heater',
+            'category': 'water_heater',
+            'documents': [
+                (_make_png_bytes(), 'nameplate.png'),
+                (io.BytesIO(b'%PDF-1.4 fake manual'), 'manual.pdf'),
+            ],
+        }, content_type='multipart/form-data')
+        assert resp.status_code == 302
+        appliance = Appliance.query.filter_by(household_id=user.household_id).first()
+        docs = document_service.get_documents_for('appliance', appliance.id)
+        assert len(docs) == 2
+        doc_types = {doc.doc_type.value for doc in docs}
+        assert doc_types == {'photo', 'manual'}
+
+    def test_create_without_documents_is_unaffected(self, logged_in_client, user):
+        from app import document_service
+        resp = logged_in_client.post('/appliances/new', data={
+            'name': 'Dryer', 'category': 'dryer',
+        })
+        assert resp.status_code == 302
+        appliance = Appliance.query.filter_by(household_id=user.household_id).first()
+        assert document_service.get_documents_for('appliance', appliance.id) == []
 
     def test_create_with_pro_service_interval(self, logged_in_client, user):
         logged_in_client.post('/appliances/new', data={
@@ -117,3 +154,68 @@ class TestApplianceEdit:
         db.session.refresh(appliance)
         assert appliance.name == 'Basement Furnace'
         assert appliance.location == 'Basement'
+
+
+class TestApplianceLookup:
+    def test_lookup_returns_service_result_as_json(self, logged_in_client, monkeypatch):
+        from app import appliance_lookup_service
+        monkeypatch.setattr(
+            appliance_lookup_service, 'lookup_appliance',
+            lambda **kwargs: {'make': 'Whirlpool', 'category': 'dishwasher'},
+        )
+        resp = logged_in_client.post('/appliances/lookup', data={'model_number': 'WDT730PAHZ0'})
+        assert resp.status_code == 200
+        assert resp.get_json() == {'make': 'Whirlpool', 'category': 'dishwasher'}
+
+    def test_lookup_requires_login(self, client):
+        resp = client.post('/appliances/lookup', data={'model_number': 'WDT730PAHZ0'})
+        assert resp.status_code == 302
+
+    def test_create_with_manual_url_attaches_document(self, logged_in_client, user):
+        from app import document_service
+        resp = logged_in_client.post('/appliances/new', data={
+            'name': 'Dishwasher', 'category': 'dishwasher',
+            'manual_url': 'https://example.com/manuals/dishwasher.pdf',
+        })
+        assert resp.status_code == 302
+        appliance = Appliance.query.filter_by(household_id=user.household_id).first()
+        docs = document_service.get_documents_for('appliance', appliance.id)
+        assert len(docs) == 1
+        assert docs[0].doc_type.value == 'manual'
+        assert docs[0].external_url == 'https://example.com/manuals/dishwasher.pdf'
+
+    def test_create_with_manufacture_year(self, logged_in_client, user):
+        resp = logged_in_client.post('/appliances/new', data={
+            'name': 'Furnace', 'category': 'furnace', 'manufacture_year': '2018',
+        })
+        assert resp.status_code == 302
+        appliance = Appliance.query.filter_by(household_id=user.household_id).first()
+        assert appliance.manufacture_year == 2018
+
+
+class TestApplianceProfilePhoto:
+    def test_upload_sets_primary_photo(self, logged_in_client, db, household):
+        appliance = Appliance(household_id=household.id, name='Furnace', category='furnace')
+        db.session.add(appliance)
+        db.session.commit()
+
+        resp = logged_in_client.post(f'/appliances/{appliance.id}/photo', data={
+            'photo': (_make_png_bytes(), 'furnace.png'),
+        }, content_type='multipart/form-data')
+        assert resp.status_code == 302
+
+        page = logged_in_client.get(f'/appliances/{appliance.id}')
+        assert b'profile-photo"' in page.data
+
+    def test_upload_404_for_other_household(self, logged_in_client, db):
+        other = Household(name='Other')
+        db.session.add(other)
+        db.session.commit()
+        appliance = Appliance(household_id=other.id, name='Furnace', category='furnace')
+        db.session.add(appliance)
+        db.session.commit()
+
+        resp = logged_in_client.post(f'/appliances/{appliance.id}/photo', data={
+            'photo': (_make_png_bytes(), 'furnace.png'),
+        }, content_type='multipart/form-data')
+        assert resp.status_code == 404

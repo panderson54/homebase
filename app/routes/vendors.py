@@ -1,7 +1,7 @@
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from app import db, document_service
+from app import db, document_service, logo_service
 from app.models import Appliance, ApplianceStatus, ServiceRecord, Vendor
 from app.routes import main_bp
 from app.routes.helpers import get_household_vendor_or_404, parse_date, parse_decimal, slugify
@@ -15,11 +15,25 @@ def _parse_vendor_type(form):
     return vendor_type or 'other'
 
 
+def _maybe_set_default_logo(vendor):
+    """Auto-fill the vendor's profile picture from its website's favicon,
+    unless one is already set — a manual upload (or a previously auto-set
+    favicon) always wins over re-guessing on every edit."""
+    if document_service.get_primary_photo_for('vendor', vendor.id) is not None:
+        return
+    favicon_url = logo_service.favicon_url_for(vendor.website)
+    if favicon_url:
+        document_service.set_primary_photo_url(vendor.household_id, 'vendor', vendor.id, favicon_url)
+
+
 @main_bp.route('/vendors')
 @login_required
 def vendor_list():
     vendors = Vendor.query.filter_by(household_id=current_user.household_id).order_by(Vendor.name).all()
-    return render_template('vendors/list.html', vendors=vendors, vendor_type_labels=VENDOR_TYPE_LABELS)
+    vendor_logos = document_service.get_primary_photos_for_many('vendor', [v.id for v in vendors])
+    return render_template(
+        'vendors/list.html', vendors=vendors, vendor_type_labels=VENDOR_TYPE_LABELS, vendor_logos=vendor_logos,
+    )
 
 
 @main_bp.route('/vendors/new', methods=['GET', 'POST'])
@@ -38,6 +52,7 @@ def vendor_new():
         )
         db.session.add(vendor)
         db.session.commit()
+        _maybe_set_default_logo(vendor)
         return redirect(url_for('main.vendor_detail', vendor_id=vendor.id))
 
     return render_template('vendors/form.html', vendor=None, vendor_type_labels=VENDOR_TYPE_LABELS)
@@ -48,13 +63,26 @@ def vendor_new():
 def vendor_detail(vendor_id):
     vendor = get_household_vendor_or_404(vendor_id)
     documents = document_service.get_documents_for('vendor', vendor.id)
+    primary_photo = document_service.get_primary_photo_for('vendor', vendor.id)
     appliances = Appliance.query.filter_by(
         household_id=current_user.household_id, status=ApplianceStatus.active
     ).order_by(Appliance.name).all()
     return render_template(
-        'vendors/detail.html', vendor=vendor, documents=documents, appliances=appliances,
-        vendor_type_labels=VENDOR_TYPE_LABELS,
+        'vendors/detail.html', vendor=vendor, documents=documents, primary_photo=primary_photo,
+        appliances=appliances, vendor_type_labels=VENDOR_TYPE_LABELS,
     )
+
+
+@main_bp.route('/vendors/<int:vendor_id>/photo', methods=['POST'])
+@login_required
+def vendor_photo_upload(vendor_id):
+    vendor = get_household_vendor_or_404(vendor_id)
+    document = document_service.set_primary_photo(
+        vendor.household_id, 'vendor', vendor.id, request.files.get('photo')
+    )
+    if document is None:
+        flash('Choose a PNG, JPG, or WEBP image.', 'danger')
+    return redirect(url_for('main.vendor_detail', vendor_id=vendor.id))
 
 
 @main_bp.route('/vendors/<int:vendor_id>/edit', methods=['GET', 'POST'])
@@ -71,6 +99,7 @@ def vendor_edit(vendor_id):
         vendor.website = request.form.get('website', '').strip() or None
         vendor.notes = request.form.get('notes', '').strip() or None
         db.session.commit()
+        _maybe_set_default_logo(vendor)
         return redirect(url_for('main.vendor_detail', vendor_id=vendor.id))
 
     return render_template('vendors/form.html', vendor=vendor, vendor_type_labels=VENDOR_TYPE_LABELS)

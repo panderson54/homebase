@@ -1,6 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
-  <path d="M50 15 L85 45 L85 85 L15 85 L15 45 Z"
+  <!-- main house silhouette: gable roof + two-story body -->
+  <path d="M50 15 L85 42 L85 88 L15 88 L15 42 Z"
         stroke="#1F2937" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
-  <path d="M42 85 L42 60 L58 60 L58 85"
-        stroke="#1F2937" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>
+  <!-- second-floor windows -->
+  <rect x="27" y="48" width="11" height="11" rx="1.5"
+        stroke="#1F2937" stroke-width="3.5" stroke-linejoin="round"/>
+  <rect x="62" y="48" width="11" height="11" rx="1.5"
+        stroke="#1F2937" stroke-width="3.5" stroke-linejoin="round"/>
+  <!-- porch gable roof -->
+  <path d="M50 55 L72 68 L28 68 Z"
+        stroke="#1F2937" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+  <!-- porch columns -->
+  <path d="M32 68 L32 88 M68 68 L68 88"
+        stroke="#1F2937" stroke-width="4" stroke-linecap="round"/>
+  <!-- door -->
+  <path d="M43 88 L43 70 L57 70 L57 88"
+        stroke="#1F2937" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+  <!-- ground-floor windows -->
+  <rect x="19" y="72" width="11" height="13" rx="1.5"
+        stroke="#1F2937" stroke-width="3.5" stroke-linejoin="round"/>
+  <rect x="70" y="72" width="11" height="13" rx="1.5"
+        stroke="#1F2937" stroke-width="3.5" stroke-linejoin="round"/>
 </svg>

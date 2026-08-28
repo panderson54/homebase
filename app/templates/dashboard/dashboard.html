@@ -4,6 +4,27 @@
 {% block content %}
 <h1 class="h3 mb-4">Dashboard</h1>
 
+<div class="row g-3 mb-4">
+  <div class="col-sm-4">
+    <div class="stat-card">
+      <div class="stat-label">Overdue</div>
+      <div class="stat-value">{{ buckets.overdue|length }}</div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="stat-card">
+      <div class="stat-label">Due soon</div>
+      <div class="stat-value">{{ buckets.due_soon|length }}</div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="stat-card">
+      <div class="stat-label">Up to date</div>
+      <div class="stat-value">{{ buckets.ok|length }}</div>
+    </div>
+  </div>
+</div>
+
 {% macro kind_badge(kind) %}
   {% if kind == 'pro_service' %}
     <span class="badge badge-kind-pro_service">Pro service</span>

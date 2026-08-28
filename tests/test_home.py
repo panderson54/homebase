@@ -56,6 +56,51 @@ class TestHomePage:
         assert household.age_years is None
 
 
+class TestHomeTabs:
+    def test_default_tab_is_overview(self, logged_in_client):
+        resp = logged_in_client.get('/home')
+        assert b'Household name' in resp.data
+
+    def test_paint_tab_shows_paint_colors(self, logged_in_client, paint_color):
+        resp = logged_in_client.get('/home?tab=paint')
+        assert paint_color.location.encode() in resp.data
+        assert b'Household name' not in resp.data
+
+    def test_rooms_tab_shows_rooms(self, logged_in_client, db, household):
+        from app.models import Room
+        room = Room(household_id=household.id, name='Kitchen', floor='1st floor')
+        db.session.add(room)
+        db.session.commit()
+
+        resp = logged_in_client.get('/home?tab=rooms')
+        assert b'Kitchen' in resp.data
+        assert b'1st floor' in resp.data
+
+    def test_unknown_tab_falls_back_to_overview(self, logged_in_client):
+        resp = logged_in_client.get('/home?tab=bogus')
+        assert b'Household name' in resp.data
+
+
+class TestHomeProfilePhoto:
+    def test_upload_sets_primary_photo(self, logged_in_client, db, household):
+        resp = logged_in_client.post('/home/photo', data={
+            'photo': (_make_png_bytes(), 'house.png'),
+        }, content_type='multipart/form-data')
+        assert resp.status_code == 302
+
+        page = logged_in_client.get('/home')
+        assert b'profile-photo"' in page.data
+
+    def test_upload_rejects_bad_extension(self, logged_in_client, db, household):
+        resp = logged_in_client.post('/home/photo', data={
+            'photo': (io.BytesIO(b'not an image'), 'notes.txt'),
+        }, content_type='multipart/form-data')
+        assert resp.status_code == 302
+
+        page = logged_in_client.get('/home')
+        assert b'profile-photo-placeholder' in page.data
+
+
 class TestHomeDocuments:
     def test_upload_link_and_list(self, logged_in_client, db, household):
         resp = logged_in_client.post('/home/documents', data={

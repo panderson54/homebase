@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}Edit service record — Homebase{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-4">Edit service record</h1>
+
+<form method="post" class="row g-3">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="col-md-3">
+    <label class="form-label" for="service_date">Date</label>
+    <input type="date" class="form-control" id="service_date" name="service_date" required
+           value="{{ record.service_date.isoformat() if record.service_date else '' }}">
+  </div>
+
+  <div class="col-md-4">
+    <label class="form-label" for="vendor_id">Vendor</label>
+    <select class="form-select" id="vendor_id" name="vendor_id" required>
+      {% for vendor in vendors %}
+        <option value="{{ vendor.id }}" {{ 'selected' if record.vendor_id == vendor.id }}>{{ vendor.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="col-md-5">
+    <label class="form-label" for="appliance_id">Appliance</label>
+    <select class="form-select" id="appliance_id" name="appliance_id">
+      <option value="">Not appliance-specific</option>
+      {% for appliance in appliances %}
+        <option value="{{ appliance.id }}" {{ 'selected' if record.appliance_id == appliance.id }}>{{ appliance.name }}</option>
+      {% endfor %}
+    </select>
+    <div class="form-text">Attach this visit to an appliance now that it's been added, if it wasn't yet when logged.</div>
+  </div>
+
+  <div class="col-md-3">
+    <label class="form-label" for="cost">Cost</label>
+    <div class="input-group">
+      <span class="input-group-text">$</span>
+      <input type="number" step="0.01" min="0" class="form-control" id="cost" name="cost"
+             value="{{ record.cost if record.cost is not none else '' }}">
+    </div>
+  </div>
+
+  <div class="col-12">
+    <label class="form-label" for="notes">Notes</label>
+    <textarea class="form-control" id="notes" name="notes" rows="3">{{ record.notes or '' }}</textarea>
+  </div>
+
+  <div class="col-12">
+    <button type="submit" class="btn btn-primary">Save changes</button>
+    <a href="{{ url_for('main.appliance_detail', appliance_id=record.appliance_id) if record.appliance_id else url_for('main.vendor_detail', vendor_id=record.vendor_id) }}"
+       class="btn btn-outline-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}

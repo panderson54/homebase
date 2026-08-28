@@ -3,6 +3,7 @@ Flask application factory
 """
 import logging
 import os
+import re
 import sqlite3
 from logging.handlers import RotatingFileHandler
 
@@ -74,6 +75,26 @@ def _datefmt(dt, fmt='%b %-d, %Y'):
     return dt.strftime(fmt.replace('%-d', '{_d_}')).replace('{_d_}', str(dt.day))
 
 
+def _currency(value):
+    """Format a Decimal/float as e.g. '$1,234.56'; '' if None."""
+    if value is None:
+        return ''
+    return '${:,.2f}'.format(value)
+
+
+def _phonefmt(value):
+    """Format a US 10/11-digit phone number as '(555) 123-4567'; anything else
+    (extensions, non-US numbers) is returned unchanged rather than mangled."""
+    if not value:
+        return ''
+    digits = re.sub(r'\D', '', value)
+    if len(digits) == 11 and digits[0] == '1':
+        digits = digits[1:]
+    if len(digits) != 10:
+        return value
+    return f'({digits[0:3]}) {digits[3:6]}-{digits[6:10]}'
+
+
 def create_app():
     """
     Application factory pattern
@@ -112,6 +133,8 @@ def create_app():
     login_manager.init_app(app)
 
     app.jinja_env.filters['datefmt'] = _datefmt
+    app.jinja_env.filters['currency'] = _currency
+    app.jinja_env.filters['phonefmt'] = _phonefmt
 
     from app.models import User
 

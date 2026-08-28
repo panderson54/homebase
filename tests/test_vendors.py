@@ -72,6 +72,49 @@ class TestVendorCRUD:
         assert vendor.name.encode() in resp.data
 
 
+class TestVendorLogo:
+    def test_create_with_website_sets_default_logo(self, logged_in_client, db, household):
+        resp = logged_in_client.post('/vendors/new', data={
+            'name': 'ACME HVAC', 'vendor_type': 'hvac', 'website': 'https://acmehvac.com',
+        })
+        assert resp.status_code == 302
+        vendor = Vendor.query.filter_by(household_id=household.id).first()
+        photo = document_service.get_primary_photo_for('vendor', vendor.id)
+        assert photo is not None
+        assert 'acmehvac.com' in photo.external_url
+
+    def test_create_without_website_has_no_logo(self, logged_in_client, db, household):
+        logged_in_client.post('/vendors/new', data={'name': 'Joe the Handyman', 'vendor_type': 'other'})
+        vendor = Vendor.query.filter_by(household_id=household.id).first()
+        assert document_service.get_primary_photo_for('vendor', vendor.id) is None
+
+    def test_manual_upload_survives_a_later_edit(self, logged_in_client, db, vendor):
+        logged_in_client.post(f'/vendors/{vendor.id}/photo', data={
+            'photo': (_make_png_bytes(), 'logo.png'),
+        }, content_type='multipart/form-data')
+        uploaded = document_service.get_primary_photo_for('vendor', vendor.id)
+        assert uploaded.file_path is not None
+
+        logged_in_client.post(f'/vendors/{vendor.id}/edit', data={
+            'name': vendor.name, 'vendor_type': 'hvac', 'website': 'https://acmehvac.com',
+        })
+        current = document_service.get_primary_photo_for('vendor', vendor.id)
+        assert current.id == uploaded.id  # not replaced by the auto-favicon
+
+    def test_photo_upload_404_for_other_household(self, logged_in_client, db):
+        other = Household(name='Other')
+        db.session.add(other)
+        db.session.commit()
+        other_vendor = Vendor(household_id=other.id, name='Other Vendor', vendor_type='other')
+        db.session.add(other_vendor)
+        db.session.commit()
+
+        resp = logged_in_client.post(f'/vendors/{other_vendor.id}/photo', data={
+            'photo': (_make_png_bytes(), 'logo.png'),
+        }, content_type='multipart/form-data')
+        assert resp.status_code == 404
+
+
 class TestVendorDocuments:
     def test_upload_link(self, logged_in_client, db, vendor):
         resp = logged_in_client.post(f'/vendors/{vendor.id}/documents', data={

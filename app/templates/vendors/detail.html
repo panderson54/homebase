@@ -3,20 +3,60 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-start mb-3">
-  <div>
-    <h1 class="h3 mb-0">{{ vendor.name }}</h1>
-    <div class="text-muted">{{ vendor_type_labels.get(vendor.vendor_type, vendor.vendor_type) }}</div>
+  <div class="d-flex align-items-center gap-3">
+    {% if primary_photo %}
+      <img src="{{ url_for('main.document_file', document_id=primary_photo.id) if primary_photo.file_path else primary_photo.external_url }}"
+           class="profile-photo" alt="">
+    {% else %}
+      <div class="profile-photo-placeholder">No logo</div>
+    {% endif %}
+    <div>
+      <h1 class="h3 mb-0">{{ vendor.name }}</h1>
+      <div class="text-muted">{{ vendor_type_labels.get(vendor.vendor_type, vendor.vendor_type) }}</div>
+      <form method="post" action="{{ url_for('main.vendor_photo_upload', vendor_id=vendor.id) }}"
+            enctype="multipart/form-data" class="mt-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="input-group input-group-sm">
+          <input type="file" class="form-control form-control-sm" name="photo" accept=".png,.jpg,.jpeg,.webp">
+          <button type="submit" class="btn btn-sm btn-outline-secondary">Upload logo</button>
+        </div>
+      </form>
+    </div>
   </div>
   <a href="{{ url_for('main.vendor_edit', vendor_id=vendor.id) }}" class="btn btn-outline-secondary btn-sm">Edit</a>
 </div>
 
-<div class="row g-2 mb-4 text-muted small">
-  {% if vendor.contact_name %}<div class="col-auto">Contact: {{ vendor.contact_name }}</div>{% endif %}
-  {% if vendor.phone %}<div class="col-auto">Phone: {{ vendor.phone }}</div>{% endif %}
-  {% if vendor.email %}<div class="col-auto">Email: {{ vendor.email }}</div>{% endif %}
-  {% if vendor.website %}<div class="col-auto"><a href="{{ vendor.website }}" target="_blank" rel="noopener">{{ vendor.website }}</a></div>{% endif %}
-</div>
-{% if vendor.notes %}<p>{{ vendor.notes }}</p>{% endif %}
+{% if vendor.contact_name or vendor.phone or vendor.email or vendor.website %}
+  <div class="card mb-4">
+    <div class="card-body">
+      <dl class="row mb-0 small">
+        {% if vendor.contact_name %}
+          <dt class="col-sm-2 text-muted fw-normal">Contact</dt>
+          <dd class="col-sm-10">{{ vendor.contact_name }}</dd>
+        {% endif %}
+        {% if vendor.phone %}
+          <dt class="col-sm-2 text-muted fw-normal">Phone</dt>
+          <dd class="col-sm-10"><a href="tel:{{ vendor.phone }}">{{ vendor.phone|phonefmt }}</a></dd>
+        {% endif %}
+        {% if vendor.email %}
+          <dt class="col-sm-2 text-muted fw-normal">Email</dt>
+          <dd class="col-sm-10"><a href="mailto:{{ vendor.email }}">{{ vendor.email }}</a></dd>
+        {% endif %}
+        {% if vendor.website %}
+          <dt class="col-sm-2 text-muted fw-normal">Website</dt>
+          <dd class="col-sm-10 mb-0"><a href="{{ vendor.website }}" target="_blank" rel="noopener">{{ vendor.website }}</a></dd>
+        {% endif %}
+      </dl>
+    </div>
+  </div>
+{% endif %}
+
+{% if vendor.notes %}
+  <section class="mb-4">
+    <h2 class="h5">Notes</h2>
+    <p class="mb-0" style="white-space: pre-wrap;">{{ vendor.notes }}</p>
+  </section>
+{% endif %}
 
 <!-- Documents -->
 <section class="mb-5">
@@ -84,14 +124,17 @@
             {% else %}
               <span class="text-muted small">— not appliance-specific</span>
             {% endif %}
-            {% if record.cost %} <span class="text-muted small">${{ '%.2f'|format(record.cost) }}</span>{% endif %}
+            {% if record.cost %} <span class="text-muted small font-tabular">{{ record.cost|currency }}</span>{% endif %}
             {% if record.notes %}<div class="small text-muted">{{ record.notes }}</div>{% endif %}
           </div>
-          <form method="post" action="{{ url_for('main.service_record_delete', record_id=record.id) }}"
-                data-confirm="Delete this service record?">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
-          </form>
+          <div class="d-flex gap-2">
+            <a href="{{ url_for('main.service_record_edit', record_id=record.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+            <form method="post" action="{{ url_for('main.service_record_delete', record_id=record.id) }}"
+                  data-confirm="Delete this service record?">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+            </form>
+          </div>
         </li>
       {% endfor %}
     </ul>
