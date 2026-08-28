@@ -70,6 +70,16 @@ def appliance_new():
             apply_category_template(appliance)
 
         db.session.commit()
+
+        for file_storage in request.files.getlist('documents'):
+            if not file_storage or not file_storage.filename:
+                continue
+            doc_type = 'photo' if file_storage.filename.lower().endswith(('.png', '.jpg', '.jpeg', '.webp')) else 'manual'
+            document_service.save_and_link(
+                household_id=appliance.household_id, entity_type='appliance', entity_id=appliance.id,
+                doc_type=doc_type, file_storage=file_storage,
+            )
+
         return redirect(url_for('main.appliance_detail', appliance_id=appliance.id))
 
     rooms = Room.query.filter_by(household_id=current_user.household_id).order_by(Room.floor, Room.name).all()

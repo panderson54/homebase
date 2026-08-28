@@ -4,7 +4,7 @@
 {% block content %}
 <h1 class="h3 mb-4">{{ 'Edit appliance' if appliance else 'Add appliance' }}</h1>
 
-<form method="post" class="row g-3">
+<form method="post" class="row g-3" enctype="multipart/form-data">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
   <div class="col-md-6">
@@ -100,6 +100,13 @@
         Pre-fill maintenance tasks and consumables for this category, if we have a template
       </label>
     </div>
+  </div>
+
+  <div class="col-12">
+    <label class="form-label" for="documents">Manuals & documents</label>
+    <input type="file" class="form-control" id="documents" name="documents" multiple
+           accept=".pdf,.png,.jpg,.jpeg,.webp">
+    <div class="form-text">Owner's manuals, spec sheets, or photos of the nameplate. You can add more later from the appliance page.</div>
   </div>
   {% endif %}
 

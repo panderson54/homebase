@@ -48,6 +48,32 @@ class TestApplianceCreate:
         assert appliance.maintenance_tasks[0].title == 'Check filter'
         assert len(appliance.consumables) == 1
 
+    def test_create_with_documents(self, logged_in_client, user):
+        from app import document_service
+        resp = logged_in_client.post('/appliances/new', data={
+            'name': 'Water Heater',
+            'category': 'water_heater',
+            'documents': [
+                (_make_png_bytes(), 'nameplate.png'),
+                (io.BytesIO(b'%PDF-1.4 fake manual'), 'manual.pdf'),
+            ],
+        }, content_type='multipart/form-data')
+        assert resp.status_code == 302
+        appliance = Appliance.query.filter_by(household_id=user.household_id).first()
+        docs = document_service.get_documents_for('appliance', appliance.id)
+        assert len(docs) == 2
+        doc_types = {doc.doc_type.value for doc in docs}
+        assert doc_types == {'photo', 'manual'}
+
+    def test_create_without_documents_is_unaffected(self, logged_in_client, user):
+        from app import document_service
+        resp = logged_in_client.post('/appliances/new', data={
+            'name': 'Dryer', 'category': 'dryer',
+        })
+        assert resp.status_code == 302
+        appliance = Appliance.query.filter_by(household_id=user.household_id).first()
+        assert document_service.get_documents_for('appliance', appliance.id) == []
+
     def test_create_with_pro_service_interval(self, logged_in_client, user):
         logged_in_client.post('/appliances/new', data={
             'name': 'Water Heater',
