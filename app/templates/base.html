@@ -39,6 +39,10 @@
                href="{{ url_for('main.vendor_list') }}">Vendors</a>
           </li>
           <li class="nav-item">
+            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('main.paint_color') %}active{% endif %}"
+               href="{{ url_for('main.paint_color_list') }}">Paint Colors</a>
+          </li>
+          <li class="nav-item">
             <a class="nav-link {% if request.endpoint == 'main.home' %}active{% endif %}"
                href="{{ url_for('main.home') }}">Home</a>
           </li>

@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Paint Colors — Homebase{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h3 mb-0">Paint Colors</h1>
+  <a href="{{ url_for('main.paint_color_new') }}" class="btn btn-primary btn-sm">Add paint color</a>
+</div>
+
+{% if paint_colors %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Location</th>
+          <th>Manufacturer</th>
+          <th>Color</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for paint in paint_colors %}
+        <tr class="cursor-pointer" onclick="window.location='{{ url_for('main.paint_color_detail', paint_color_id=paint.id) }}'">
+          <td>
+            {% if paint.hex_color %}
+              <span class="color-swatch color-swatch-sm" style="background-color: {{ paint.hex_color }};"></span>
+            {% endif %}
+          </td>
+          <td><a href="{{ url_for('main.paint_color_detail', paint_color_id=paint.id) }}">{{ paint.location }}</a></td>
+          <td>{{ paint.manufacturer or '' }}</td>
+          <td>{{ paint.color_name or '' }} {% if paint.color_code %}<span class="text-muted small">{{ paint.color_code }}</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p class="text-muted">No paint colors tracked yet.</p>
+{% endif %}
+{% endblock %}

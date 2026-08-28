@@ -22,7 +22,8 @@ app/
     __init__.py           # Blueprint + sub-module imports
     helpers.py            # Shared route utilities (household scoping, slugify, parse_date)
     auth.py, dashboard.py, appliances.py, documents.py,
-    maintenance.py, consumables.py, service_records.py, vendors.py, home.py, export.py
+    maintenance.py, consumables.py, service_records.py, vendors.py,
+    paint_colors.py, home.py, export.py
   models.py                # SQLAlchemy ORM models
 ```
 
@@ -56,7 +57,8 @@ services or models.
 (directly or via the resource's own `appliance_id`) so one household can
 never read or modify another's data — there is no other access-control
 layer in this app. Vendors go through the equivalent
-`get_household_vendor_or_404()`. A `Document` isn't owned by an appliance
+`get_household_vendor_or_404()`, paint colors through
+`get_household_paint_color_or_404()`. A `Document` isn't owned by an appliance
 directly (see `DocumentLink` in `models.py`), and a `ServiceRecord` isn't
 always owned by an appliance either (a vendor visit can stand alone) — both
 carry their own `household_id` — check that directly when scoping access

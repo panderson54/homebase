@@ -4,7 +4,9 @@ import re
 from flask import abort
 from flask_login import current_user
 
-from app.models import Appliance, Vendor
+from app.models import Appliance, PaintColor, Vendor
+
+_HEX_COLOR_RE = re.compile(r'^#[0-9A-Fa-f]{6}$')
 
 
 def slugify(text):
@@ -37,6 +39,26 @@ def get_household_vendor_or_404(vendor_id):
     if vendor is None:
         abort(404)
     return vendor
+
+
+def get_household_paint_color_or_404(paint_color_id):
+    """Fetch a paint color scoped to the current user's household, or 404."""
+    paint_color = PaintColor.query.filter_by(
+        id=paint_color_id, household_id=current_user.household_id
+    ).first()
+    if paint_color is None:
+        abort(404)
+    return paint_color
+
+
+def parse_hex_color(value):
+    """Validate a '#RRGGBB' color input; returns the uppercased value or None if
+    blank/malformed. Validating here means any hex value that reaches a template
+    is already safe to drop into a `style="background-color: ..."` attribute."""
+    value = (value or '').strip()
+    if not value:
+        return None
+    return value.upper() if _HEX_COLOR_RE.match(value) else None
 
 
 def parse_date(value):
