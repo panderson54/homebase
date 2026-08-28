@@ -3,7 +3,7 @@ from flask_login import current_user, login_required
 
 from app import db, document_service
 from app.category_templates_data import CATEGORY_LABELS
-from app.models import Appliance, ApplianceStatus, FrequencyUnit, Vendor
+from app.models import Appliance, ApplianceStatus, FrequencyUnit, Room, Vendor
 from app.routes import main_bp
 from app.routes.helpers import get_household_appliance_or_404, parse_date, slugify
 from app.template_service import apply_category_template
@@ -15,6 +15,14 @@ def _parse_pro_service_interval(form):
     if not value or not unit:
         return None, None
     return int(value), FrequencyUnit(unit)
+
+
+def _parse_room_id(form, household_id):
+    room_id = form.get('room_id', '').strip()
+    if not room_id:
+        return None
+    room = Room.query.filter_by(id=room_id, household_id=household_id).first()
+    return room.id if room else None
 
 
 @main_bp.route('/appliances')
@@ -47,6 +55,7 @@ def appliance_new():
             model_number=request.form.get('model_number', '').strip() or None,
             serial_number=request.form.get('serial_number', '').strip() or None,
             location=request.form.get('location', '').strip() or None,
+            room_id=_parse_room_id(request.form, current_user.household_id),
             install_date=parse_date(request.form.get('install_date')),
             purchase_date=parse_date(request.form.get('purchase_date')),
             notes=request.form.get('notes', '').strip() or None,
@@ -63,7 +72,8 @@ def appliance_new():
         db.session.commit()
         return redirect(url_for('main.appliance_detail', appliance_id=appliance.id))
 
-    return render_template('appliances/form.html', appliance=None, category_labels=CATEGORY_LABELS)
+    rooms = Room.query.filter_by(household_id=current_user.household_id).order_by(Room.floor, Room.name).all()
+    return render_template('appliances/form.html', appliance=None, category_labels=CATEGORY_LABELS, rooms=rooms)
 
 
 @main_bp.route('/appliances/<int:appliance_id>')
@@ -94,6 +104,7 @@ def appliance_edit(appliance_id):
         appliance.model_number = request.form.get('model_number', '').strip() or None
         appliance.serial_number = request.form.get('serial_number', '').strip() or None
         appliance.location = request.form.get('location', '').strip() or None
+        appliance.room_id = _parse_room_id(request.form, appliance.household_id)
         appliance.install_date = parse_date(request.form.get('install_date'))
         appliance.purchase_date = parse_date(request.form.get('purchase_date'))
         appliance.notes = request.form.get('notes', '').strip() or None
@@ -103,7 +114,8 @@ def appliance_edit(appliance_id):
         db.session.commit()
         return redirect(url_for('main.appliance_detail', appliance_id=appliance.id))
 
-    return render_template('appliances/form.html', appliance=appliance, category_labels=CATEGORY_LABELS)
+    rooms = Room.query.filter_by(household_id=appliance.household_id).order_by(Room.floor, Room.name).all()
+    return render_template('appliances/form.html', appliance=appliance, category_labels=CATEGORY_LABELS, rooms=rooms)
 
 
 @main_bp.route('/appliances/<int:appliance_id>/archive', methods=['POST'])

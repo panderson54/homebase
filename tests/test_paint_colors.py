@@ -52,6 +52,16 @@ class TestPaintColorCRUD:
         assert paint.manufacturer == 'Benjamin Moore'
         assert paint.hex_color == '#F6F4EF'
 
+    def test_create_with_multiple_locations(self, logged_in_client, db, household):
+        resp = logged_in_client.post('/paint-colors/new', data={
+            'location': ' Living room , Hallway,Stairwell ',
+            'hex_color': '#F6F4EF',
+        })
+        assert resp.status_code == 302
+        paint = PaintColor.query.filter_by(household_id=household.id).first()
+        assert paint.location == 'Living room, Hallway, Stairwell'
+        assert paint.location_list == ['Living room', 'Hallway', 'Stairwell']
+
     def test_create_with_invalid_hex_saves_without_swatch(self, logged_in_client, db, household):
         resp = logged_in_client.post('/paint-colors/new', data={
             'location': 'Hallway',
@@ -87,8 +97,13 @@ class TestPaintColorCRUD:
         assert paint_color.location == 'Living room accent wall'
         assert paint_color.hex_color == '#123456'
 
-    def test_list_shows_swatch(self, logged_in_client, paint_color):
+    def test_list_redirects_to_home_paint_tab(self, logged_in_client):
         resp = logged_in_client.get('/paint-colors')
+        assert resp.status_code == 302
+        assert resp.headers['Location'] == '/home?tab=paint'
+
+    def test_home_paint_tab_shows_swatch(self, logged_in_client, paint_color):
+        resp = logged_in_client.get('/home?tab=paint')
         assert paint_color.location.encode() in resp.data
         assert paint_color.hex_color.encode() in resp.data
 

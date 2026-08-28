@@ -8,9 +8,22 @@
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
   <div class="col-md-6">
-    <label class="form-label" for="location">Location</label>
+    <label class="form-label" for="location">Locations</label>
     <input type="text" class="form-control" id="location" name="location" required
-           value="{{ paint_color.location if paint_color else '' }}" placeholder="e.g. Living room walls">
+           value="{{ paint_color.location if paint_color else '' }}" placeholder="e.g. Living room, Hallway">
+    <div class="form-text">Separate multiple locations with commas if this color is used in more than one place.</div>
+  </div>
+
+  <div class="col-md-6">
+    <label class="form-label" for="room_id">Room</label>
+    <select class="form-select" id="room_id" name="room_id">
+      <option value="">No room assigned</option>
+      {% for room in rooms %}
+        <option value="{{ room.id }}" {{ 'selected' if paint_color and paint_color.room_id == room.id }}>
+          {{ room.name }}{% if room.floor %} ({{ room.floor }}){% endif %}
+        </option>
+      {% endfor %}
+    </select>
   </div>
 
   <div class="col-md-6">
@@ -55,7 +68,7 @@
 
   <div class="col-12">
     <button type="submit" class="btn btn-primary">{{ 'Save changes' if paint_color else 'Add paint color' }}</button>
-    <a href="{{ url_for('main.paint_color_detail', paint_color_id=paint_color.id) if paint_color else url_for('main.paint_color_list') }}"
+    <a href="{{ url_for('main.paint_color_detail', paint_color_id=paint_color.id) if paint_color else url_for('main.home', tab='paint') }}"
        class="btn btn-outline-secondary">Cancel</a>
   </div>
 </form>

@@ -7,6 +7,7 @@
     <h1 class="h3 mb-0">{{ appliance.name }}</h1>
     <div class="text-muted">
       {{ category_labels.get(appliance.category, appliance.category) }}
+      {% if appliance.room %} · <a href="{{ url_for('main.home', tab='rooms') }}" class="text-muted">{{ appliance.room.name }}</a>{% endif %}
       {% if appliance.location %} · {{ appliance.location }}{% endif %}
     </div>
   </div>
@@ -250,14 +251,17 @@
             {% if record.vendor %} —
               <a href="{{ url_for('main.vendor_detail', vendor_id=record.vendor.id) }}">{{ record.vendor.name }}</a>
             {% endif %}
-            {% if record.cost %} <span class="text-muted small">${{ '%.2f'|format(record.cost) }}</span>{% endif %}
+            {% if record.cost %} <span class="text-muted small font-tabular">{{ record.cost|currency }}</span>{% endif %}
             {% if record.notes %}<div class="small text-muted">{{ record.notes }}</div>{% endif %}
           </div>
-          <form method="post" action="{{ url_for('main.service_record_delete', record_id=record.id) }}"
-                data-confirm="Delete this service record?">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
-          </form>
+          <div class="d-flex gap-2">
+            <a href="{{ url_for('main.service_record_edit', record_id=record.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+            <form method="post" action="{{ url_for('main.service_record_delete', record_id=record.id) }}"
+                  data-confirm="Delete this service record?">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+            </form>
+          </div>
         </li>
       {% endfor %}
     </ul>

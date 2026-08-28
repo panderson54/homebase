@@ -15,6 +15,7 @@
       } catch (e) {}
     })();
   </script>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="{{ url_for('static', filename='style.css') }}" rel="stylesheet">
 </head>
@@ -36,20 +37,16 @@
                href="{{ url_for('main.dashboard') }}">Dashboard</a>
           </li>
           <li class="nav-item">
+            <a class="nav-link {% if request.endpoint == 'main.home' or (request.endpoint and request.endpoint.startswith('main.paint_color')) %}active{% endif %}"
+               href="{{ url_for('main.home') }}">Home</a>
+          </li>
+          <li class="nav-item">
             <a class="nav-link {% if request.endpoint and request.endpoint.startswith('main.appliance') %}active{% endif %}"
                href="{{ url_for('main.appliance_list') }}">Appliances</a>
           </li>
           <li class="nav-item">
             <a class="nav-link {% if request.endpoint and request.endpoint.startswith('main.vendor') %}active{% endif %}"
                href="{{ url_for('main.vendor_list') }}">Vendors</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if request.endpoint and request.endpoint.startswith('main.paint_color') %}active{% endif %}"
-               href="{{ url_for('main.paint_color_list') }}">Paint Colors</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if request.endpoint == 'main.home' %}active{% endif %}"
-               href="{{ url_for('main.home') }}">Home</a>
           </li>
           <li class="nav-item">
             <a class="nav-link {% if request.endpoint and request.endpoint.startswith('main.context_export') %}active{% endif %}"

@@ -2,13 +2,19 @@
 {% block title %}{{ paint_color.location }} — Homebase{% endblock %}
 
 {% block content %}
+<a href="{{ url_for('main.home', tab='paint') }}" class="text-muted small d-inline-block mb-3">&larr; Back to Paint</a>
+
 <div class="d-flex justify-content-between align-items-start mb-3">
   <div class="d-flex align-items-center gap-3">
     {% if paint_color.hex_color %}
-      <span class="color-swatch color-swatch-lg" style="background-color: {{ paint_color.hex_color }};"></span>
+      <span class="color-swatch color-swatch-xl" style="background-color: {{ paint_color.hex_color }};"></span>
     {% endif %}
     <div>
-      <h1 class="h3 mb-0">{{ paint_color.location }}</h1>
+      <h1 class="h3 mb-1">
+        {% for loc in paint_color.location_list %}
+          <span class="badge text-bg-light border fw-normal">{{ loc }}</span>
+        {% endfor %}
+      </h1>
       <div class="text-muted">
         {{ paint_color.manufacturer or '' }}
         {% if paint_color.color_name %} — {{ paint_color.color_name }}{% endif %}
@@ -28,11 +34,17 @@
 
 <div class="row g-2 mb-4 text-muted small">
   {% if paint_color.hex_color %}<div class="col-auto">Color: {{ paint_color.hex_color }}</div>{% endif %}
+  {% if paint_color.room %}<div class="col-auto">Room: <a href="{{ url_for('main.home', tab='rooms') }}" class="text-muted">{{ paint_color.room.name }}</a></div>{% endif %}
   {% if paint_color.product_url %}
     <div class="col-auto"><a href="{{ paint_color.product_url }}" target="_blank" rel="noopener">Product page</a></div>
   {% endif %}
 </div>
-{% if paint_color.notes %}<p>{{ paint_color.notes }}</p>{% endif %}
+{% if paint_color.notes %}
+  <section class="mb-4">
+    <h2 class="h5">Notes</h2>
+    <p class="mb-0" style="white-space: pre-wrap;">{{ paint_color.notes }}</p>
+  </section>
+{% endif %}
 
 <!-- Documents -->
 <section class="mb-5">

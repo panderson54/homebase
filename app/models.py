@@ -61,6 +61,10 @@ class Household(db.Model):
     appliances = db.relationship('Appliance', back_populates='household', cascade='all, delete-orphan')
     vendors = db.relationship('Vendor', back_populates='household', cascade='all, delete-orphan')
     paint_colors = db.relationship('PaintColor', back_populates='household', cascade='all, delete-orphan')
+    rooms = db.relationship(
+        'Room', back_populates='household', cascade='all, delete-orphan',
+        order_by='Room.floor, Room.name',
+    )
 
     @property
     def age_years(self):
@@ -96,6 +100,7 @@ class Appliance(db.Model):
     model_number = db.Column(db.String(120))
     serial_number = db.Column(db.String(120))
     location = db.Column(db.String(120))
+    room_id = db.Column(db.Integer, db.ForeignKey('rooms.id'))
     install_date = db.Column(db.Date)
     purchase_date = db.Column(db.Date)
     status = db.Column(
@@ -107,6 +112,7 @@ class Appliance(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     household = db.relationship('Household', back_populates='appliances')
+    room = db.relationship('Room', back_populates='appliances')
     maintenance_tasks = db.relationship(
         'MaintenanceTask', back_populates='appliance', cascade='all, delete-orphan',
         order_by='MaintenanceTask.title',
@@ -264,13 +270,14 @@ class Vendor(db.Model):
 
 class PaintColor(db.Model):
     """A paint color used somewhere in the home. Deliberately independent of
-    appliances/vendors — one row per (color, location) pair; the same color used
-    in two rooms is just entered twice, rather than modeling a many-to-many."""
+    appliances/vendors. The same color is often used in more than one room, so
+    `location` holds a comma-separated list rather than modeling a many-to-many."""
     __tablename__ = 'paint_colors'
 
     id = db.Column(db.Integer, primary_key=True)
     household_id = db.Column(db.Integer, db.ForeignKey('households.id'), nullable=False)
-    location = db.Column(db.String(120), nullable=False)
+    location = db.Column(db.String(500), nullable=False)
+    room_id = db.Column(db.Integer, db.ForeignKey('rooms.id'))
     manufacturer = db.Column(db.String(120))
     color_name = db.Column(db.String(120))
     color_code = db.Column(db.String(80))
@@ -280,6 +287,29 @@ class PaintColor(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     household = db.relationship('Household', back_populates='paint_colors')
+    room = db.relationship('Room', back_populates='paint_colors')
+
+    @property
+    def location_list(self):
+        return [loc.strip() for loc in self.location.split(',') if loc.strip()]
+
+
+class Room(db.Model):
+    """A named space in the home (e.g. "Kitchen", "Bedroom 2"), optionally grouped
+    under a floor label. Appliances and paint colors can be tied to one for a
+    structured, browsable view of the house — independent of the free-text
+    location fields those models already carry."""
+    __tablename__ = 'rooms'
+
+    id = db.Column(db.Integer, primary_key=True)
+    household_id = db.Column(db.Integer, db.ForeignKey('households.id'), nullable=False)
+    name = db.Column(db.String(120), nullable=False)
+    floor = db.Column(db.String(80))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    household = db.relationship('Household', back_populates='rooms')
+    appliances = db.relationship('Appliance', back_populates='room')
+    paint_colors = db.relationship('PaintColor', back_populates='room')
 
 
 class CategoryTemplate(db.Model):

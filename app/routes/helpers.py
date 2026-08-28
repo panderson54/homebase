@@ -4,7 +4,7 @@ import re
 from flask import abort
 from flask_login import current_user
 
-from app.models import Appliance, PaintColor, Vendor
+from app.models import Appliance, PaintColor, Room, Vendor
 
 _HEX_COLOR_RE = re.compile(r'^#[0-9A-Fa-f]{6}$')
 
@@ -49,6 +49,16 @@ def get_household_paint_color_or_404(paint_color_id):
     if paint_color is None:
         abort(404)
     return paint_color
+
+
+def get_household_room_or_404(room_id):
+    """Fetch a room scoped to the current user's household, or 404."""
+    room = Room.query.filter_by(
+        id=room_id, household_id=current_user.household_id
+    ).first()
+    if room is None:
+        abort(404)
+    return room
 
 
 def parse_hex_color(value):

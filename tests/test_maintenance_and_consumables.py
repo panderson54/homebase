@@ -169,3 +169,47 @@ class TestServiceRecords:
         resp = logged_in_client.post(f'/service-records/{record_id}/delete')
         assert resp.status_code == 302
         assert db.session.get(ServiceRecord, record_id) is None
+
+    def test_edit_attaches_appliance_added_after_the_fact(self, logged_in_client, db, household, vendor):
+        record = ServiceRecord(household_id=household.id, vendor_id=vendor.id, service_date=date(2026, 1, 1))
+        db.session.add(record)
+        db.session.commit()
+        appliance = Appliance(household_id=household.id, name='Furnace', category='furnace')
+        db.session.add(appliance)
+        db.session.commit()
+
+        resp = logged_in_client.post(f'/service-records/{record.id}/edit', data={
+            'service_date': '2026-01-01',
+            'vendor_id': vendor.id,
+            'appliance_id': appliance.id,
+            'cost': '150.00',
+            'notes': 'Annual tune-up',
+        })
+        assert resp.status_code == 302
+        db.session.refresh(record)
+        assert record.appliance_id == appliance.id
+        assert record.notes == 'Annual tune-up'
+
+    def test_edit_requires_vendor(self, logged_in_client, db, household, vendor):
+        record = ServiceRecord(household_id=household.id, vendor_id=vendor.id, service_date=date(2026, 1, 1))
+        db.session.add(record)
+        db.session.commit()
+
+        resp = logged_in_client.post(f'/service-records/{record.id}/edit', data={
+            'service_date': '2026-01-01',
+        })
+        assert resp.status_code == 302
+        db.session.refresh(record)
+        assert record.vendor_id == vendor.id  # unchanged
+
+    def test_edit_404_for_other_household(self, logged_in_client, db):
+        from app.models import Household
+        other = Household(name='Other')
+        db.session.add(other)
+        db.session.commit()
+        record = ServiceRecord(household_id=other.id, service_date=date(2026, 1, 1))
+        db.session.add(record)
+        db.session.commit()
+
+        resp = logged_in_client.get(f'/service-records/{record.id}/edit')
+        assert resp.status_code == 404

@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block title %}Edit {{ room.name }} — Homebase{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('main.home', tab='rooms') }}" class="text-muted small d-inline-block mb-3">&larr; Back to Rooms</a>
+<h1 class="h3 mb-4">Edit room</h1>
+
+<form method="post" class="row g-3">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="col-md-6">
+    <label class="form-label" for="name">Name</label>
+    <input type="text" class="form-control" id="name" name="name" required value="{{ room.name }}">
+  </div>
+  <div class="col-md-6">
+    <label class="form-label" for="floor">Floor</label>
+    <input type="text" class="form-control" id="floor" name="floor" value="{{ room.floor or '' }}"
+           placeholder="e.g. 1st floor, Basement">
+  </div>
+
+  <div class="col-12">
+    <button type="submit" class="btn btn-primary">Save changes</button>
+    <a href="{{ url_for('main.home', tab='rooms') }}" class="btn btn-outline-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}

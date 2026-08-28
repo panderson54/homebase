@@ -48,6 +48,17 @@
            value="{{ appliance.location if appliance else '' }}" placeholder="e.g. Basement utility room">
   </div>
   <div class="col-md-4">
+    <label class="form-label" for="room_id">Room</label>
+    <select class="form-select" id="room_id" name="room_id">
+      <option value="">No room assigned</option>
+      {% for room in rooms %}
+        <option value="{{ room.id }}" {{ 'selected' if appliance and appliance.room_id == room.id }}>
+          {{ room.name }}{% if room.floor %} ({{ room.floor }}){% endif %}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-4">
     <label class="form-label" for="install_date">Install date</label>
     <input type="date" class="form-control" id="install_date" name="install_date"
            value="{{ appliance.install_date if appliance else '' }}">
