@@ -7,3 +7,4 @@ python-dotenv==1.0.0
 SQLAlchemy>=2.0.36
 gunicorn>=21.2.0
 Pillow>=9.1
+anthropic>=0.40

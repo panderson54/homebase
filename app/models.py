@@ -101,6 +101,7 @@ class Appliance(db.Model):
     serial_number = db.Column(db.String(120))
     location = db.Column(db.String(120))
     room_id = db.Column(db.Integer, db.ForeignKey('rooms.id'))
+    manufacture_year = db.Column(db.Integer)
     install_date = db.Column(db.Date)
     purchase_date = db.Column(db.Date)
     status = db.Column(

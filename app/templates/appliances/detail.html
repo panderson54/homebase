@@ -47,6 +47,7 @@
   {% if appliance.make %}<div class="col-auto">Make: {{ appliance.make }}</div>{% endif %}
   {% if appliance.model_number %}<div class="col-auto">Model: {{ appliance.model_number }}</div>{% endif %}
   {% if appliance.serial_number %}<div class="col-auto">Serial: {{ appliance.serial_number }}</div>{% endif %}
+  {% if appliance.manufacture_year %}<div class="col-auto">Manufactured: {{ appliance.manufacture_year }}</div>{% endif %}
   {% if appliance.install_date %}<div class="col-auto">Installed: {{ appliance.install_date|datefmt }}</div>{% endif %}
   {% if appliance.purchase_date %}<div class="col-auto">Purchased: {{ appliance.purchase_date|datefmt }}</div>{% endif %}
 </div>

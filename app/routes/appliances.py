@@ -1,12 +1,16 @@
-from flask import flash, redirect, render_template, request, url_for
+from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from app import db, document_service
+from app import appliance_lookup_service, db, document_service
 from app.category_templates_data import CATEGORY_LABELS
 from app.models import Appliance, ApplianceStatus, FrequencyUnit, Room, Vendor
 from app.routes import main_bp
 from app.routes.helpers import get_household_appliance_or_404, parse_date, slugify
 from app.template_service import apply_category_template
+
+_LOOKUP_IMAGE_MEDIA_TYPES = {
+    'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'webp': 'image/webp',
+}
 
 
 def _parse_pro_service_interval(form):
@@ -23,6 +27,30 @@ def _parse_room_id(form, household_id):
         return None
     room = Room.query.filter_by(id=room_id, household_id=household_id).first()
     return room.id if room else None
+
+
+def _parse_manufacture_year(form):
+    value = form.get('manufacture_year', '').strip()
+    return int(value) if value.isdigit() else None
+
+
+@main_bp.route('/appliances/lookup', methods=['POST'])
+@login_required
+def appliance_lookup():
+    model_number = request.form.get('model_number', '')
+    image_bytes = None
+    image_media_type = 'image/jpeg'
+    photo = request.files.get('photo')
+    if photo and photo.filename:
+        ext = photo.filename.rsplit('.', 1)[-1].lower() if '.' in photo.filename else ''
+        if ext in _LOOKUP_IMAGE_MEDIA_TYPES:
+            image_media_type = _LOOKUP_IMAGE_MEDIA_TYPES[ext]
+            image_bytes = photo.read()
+
+    result = appliance_lookup_service.lookup_appliance(
+        model_number=model_number, image_bytes=image_bytes, image_media_type=image_media_type,
+    )
+    return jsonify(result)
 
 
 @main_bp.route('/appliances')
@@ -56,6 +84,7 @@ def appliance_new():
             serial_number=request.form.get('serial_number', '').strip() or None,
             location=request.form.get('location', '').strip() or None,
             room_id=_parse_room_id(request.form, current_user.household_id),
+            manufacture_year=_parse_manufacture_year(request.form),
             install_date=parse_date(request.form.get('install_date')),
             purchase_date=parse_date(request.form.get('purchase_date')),
             notes=request.form.get('notes', '').strip() or None,
@@ -78,6 +107,13 @@ def appliance_new():
             document_service.save_and_link(
                 household_id=appliance.household_id, entity_type='appliance', entity_id=appliance.id,
                 doc_type=doc_type, file_storage=file_storage,
+            )
+
+        manual_url = request.form.get('manual_url', '').strip()
+        if manual_url:
+            document_service.save_and_link(
+                household_id=appliance.household_id, entity_type='appliance', entity_id=appliance.id,
+                doc_type='manual', external_url=manual_url,
             )
 
         return redirect(url_for('main.appliance_detail', appliance_id=appliance.id))
@@ -128,6 +164,7 @@ def appliance_edit(appliance_id):
         appliance.serial_number = request.form.get('serial_number', '').strip() or None
         appliance.location = request.form.get('location', '').strip() or None
         appliance.room_id = _parse_room_id(request.form, appliance.household_id)
+        appliance.manufacture_year = _parse_manufacture_year(request.form)
         appliance.install_date = parse_date(request.form.get('install_date'))
         appliance.purchase_date = parse_date(request.form.get('purchase_date'))
         appliance.notes = request.form.get('notes', '').strip() or None

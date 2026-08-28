@@ -35,11 +35,21 @@
     <label class="form-label" for="model_number">Model number</label>
     <input type="text" class="form-control" id="model_number" name="model_number"
            value="{{ appliance.model_number if appliance else '' }}">
+    {% if not appliance %}
+      <button type="button" id="lookup_btn" class="btn btn-sm btn-outline-secondary mt-2">Look up appliance</button>
+      <div class="form-text">Uses a model number and/or a nameplate photo (attached below) to prefill make, category, and notes.</div>
+      <input type="hidden" id="manual_url_lookup" name="manual_url">
+    {% endif %}
   </div>
   <div class="col-md-4">
     <label class="form-label" for="serial_number">Serial number</label>
     <input type="text" class="form-control" id="serial_number" name="serial_number"
            value="{{ appliance.serial_number if appliance else '' }}">
+  </div>
+  <div class="col-md-4">
+    <label class="form-label" for="manufacture_year">Manufacture year</label>
+    <input type="number" min="1900" max="2100" class="form-control" id="manufacture_year" name="manufacture_year"
+           value="{{ appliance.manufacture_year if appliance else '' }}">
   </div>
 
   <div class="col-md-4">
@@ -72,9 +82,9 @@
   <div class="col-md-6">
     <label class="form-label">Professional service interval</label>
     <div class="input-group">
-      <input type="number" min="1" class="form-control" name="pro_service_interval_value"
+      <input type="number" min="1" class="form-control" id="pro_service_interval_value" name="pro_service_interval_value"
              value="{{ appliance.pro_service_interval_value if appliance else '' }}" placeholder="e.g. 1">
-      <select class="form-select" name="pro_service_interval_unit">
+      <select class="form-select" id="pro_service_interval_unit" name="pro_service_interval_unit">
         <option value="">—</option>
         {% for unit in ['days', 'weeks', 'months', 'years'] %}
           <option value="{{ unit }}"
@@ -126,5 +136,61 @@
     input.classList.toggle('d-none', select.value !== '__other__');
   }
   toggleCustomCategory();
+
+  var lookupBtn = document.getElementById('lookup_btn');
+  if (lookupBtn) {
+    lookupBtn.addEventListener('click', function () {
+      var modelNumber = document.getElementById('model_number').value.trim();
+      var photoFile = null;
+      var documentsInput = document.getElementById('documents');
+      if (documentsInput) {
+        for (var i = 0; i < documentsInput.files.length; i++) {
+          if (/\.(png|jpe?g|webp)$/i.test(documentsInput.files[i].name)) {
+            photoFile = documentsInput.files[i];
+            break;
+          }
+        }
+      }
+      if (!modelNumber && !photoFile) {
+        alert('Enter a model number or attach a nameplate photo to the Manuals & documents field first.');
+        return;
+      }
+
+      var formData = new FormData();
+      if (modelNumber) formData.append('model_number', modelNumber);
+      if (photoFile) formData.append('photo', photoFile);
+
+      lookupBtn.disabled = true;
+      var originalLabel = lookupBtn.textContent;
+      lookupBtn.textContent = 'Looking up…';
+
+      fetch('{{ url_for("main.appliance_lookup") }}', {method: 'POST', body: formData})
+        .then(function (resp) { return resp.json(); })
+        .then(function (data) {
+          if (data.make) document.getElementById('make').value = data.make;
+          if (data.category) {
+            document.getElementById('category').value = data.category;
+            toggleCustomCategory();
+          }
+          if (data.model_number && !modelNumber) document.getElementById('model_number').value = data.model_number;
+          if (data.serial_number) document.getElementById('serial_number').value = data.serial_number;
+          if (data.manufacture_year) document.getElementById('manufacture_year').value = data.manufacture_year;
+          if (data.pro_service_interval_value) document.getElementById('pro_service_interval_value').value = data.pro_service_interval_value;
+          if (data.pro_service_interval_unit) document.getElementById('pro_service_interval_unit').value = data.pro_service_interval_unit;
+          if (data.notes) document.getElementById('notes').value = data.notes;
+          if (data.manual_url) document.getElementById('manual_url_lookup').value = data.manual_url;
+          if (!data.make && !data.category && !data.notes) {
+            alert("Couldn't find a confident match — fill in the details manually.");
+          }
+        })
+        .catch(function () {
+          alert('Lookup failed. Fill in the details manually.');
+        })
+        .finally(function () {
+          lookupBtn.disabled = false;
+          lookupBtn.textContent = originalLabel;
+        });
+    });
+  }
 </script>
 {% endblock %}
