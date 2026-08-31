@@ -2,7 +2,8 @@ from datetime import date
 
 from app.context_export_service import build_context_markdown
 from app.models import (
-    Appliance, ApplianceStatus, MaintenanceLog, MaintenanceTask, PaintColor, ServiceRecord, Vendor,
+    Appliance, ApplianceStatus, Document, DocumentLink, MaintenanceLog, MaintenanceTask, PaintColor, Room,
+    ServiceRecord, Vendor,
 )
 
 
@@ -116,6 +117,61 @@ class TestBuildContextMarkdown:
     def test_no_paint_colors_section_when_none_exist(self, app, db, household):
         markdown = build_context_markdown(household)
         assert '## Paint Colors' not in markdown
+
+    def test_rooms_section_lists_room_and_its_contents(self, app, db, household):
+        room = Room(household_id=household.id, name='Kitchen', floor='1st floor')
+        db.session.add(room)
+        db.session.commit()
+
+        appliance = Appliance(
+            household_id=household.id, name='Fridge', category='refrigerator', room_id=room.id,
+        )
+        db.session.add(appliance)
+        db.session.add(PaintColor(
+            household_id=household.id, location='Kitchen walls', color_name='Alabaster', room_id=room.id,
+        ))
+        db.session.commit()
+
+        markdown = build_context_markdown(household)
+        assert '## Rooms' in markdown
+
+        rooms_section = markdown.split('## Rooms')[1].split('##')[0]
+        assert 'Kitchen' in rooms_section
+        assert '1st floor' in rooms_section
+        assert 'Fridge' in rooms_section
+        assert 'Alabaster' in rooms_section
+
+        assert 'Room: Kitchen' in markdown.split('## Appliances')[1]
+        assert 'Room: Kitchen' in markdown.split('## Paint Colors')[1]
+
+    def test_no_rooms_section_when_none_exist(self, app, db, household):
+        markdown = build_context_markdown(household)
+        assert '## Rooms' not in markdown
+
+    def test_uploaded_file_documents_are_omitted(self, app, db, household):
+        upload = Document(
+            household_id=household.id, doc_type='manual', file_path='uploads/123545.jpg',
+            original_filename='123545.jpg',
+        )
+        db.session.add(upload)
+        db.session.commit()
+        db.session.add(DocumentLink(document_id=upload.id, entity_type='home', entity_id=household.id))
+        db.session.commit()
+
+        markdown = build_context_markdown(household)
+        assert '123545.jpg' not in markdown
+
+    def test_linked_documents_are_included(self, app, db, household):
+        link_doc = Document(
+            household_id=household.id, doc_type='manual', external_url='https://example.com/manual.pdf',
+        )
+        db.session.add(link_doc)
+        db.session.commit()
+        db.session.add(DocumentLink(document_id=link_doc.id, entity_type='home', entity_id=household.id))
+        db.session.commit()
+
+        markdown = build_context_markdown(household)
+        assert 'https://example.com/manual.pdf' in markdown
 
 
 class TestExportRoutes:

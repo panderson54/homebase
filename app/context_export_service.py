@@ -3,8 +3,9 @@ household, for use as LLM context (e.g. RAG grounding in another project).
 Deliberately includes full history, not just current state — appliance counts
 here are small enough that this comfortably fits a modern context window.
 
-Document *contents* (PDF/photo bytes) are not inlined, only their metadata —
-text-extraction from manuals is a separate, later feature.
+Uploaded files (PDF/photo bytes) aren't inlined and their filenames carry no
+signal an LLM can use — text-extraction from manuals is a separate, later
+feature. Only external links are listed, since the URL itself is information.
 """
 from datetime import datetime
 
@@ -15,13 +16,13 @@ from app.vendor_types_data import VENDOR_TYPE_LABELS
 
 
 def _document_lines(documents):
-    if not documents:
+    linked = [doc for doc in documents if doc.external_url]
+    if not linked:
         return ['  (no documents)']
     lines = []
-    for doc in documents:
+    for doc in linked:
         label = doc.doc_type.value.replace('_', ' ')
-        target = doc.original_filename if doc.file_path else doc.external_url
-        lines.append(f'  - {label}: {target}')
+        lines.append(f'  - {label}: {doc.external_url}')
     return lines
 
 
@@ -110,6 +111,7 @@ def _paint_color_section(paint_color):
         ('Manufacturer', paint_color.manufacturer),
         ('Color code', paint_color.color_code),
         ('Hex color', paint_color.hex_color),
+        ('Room', paint_color.room.name if paint_color.room else None),
         ('Product link', paint_color.product_url),
     ):
         if value:
@@ -125,6 +127,20 @@ def _paint_color_section(paint_color):
     return lines
 
 
+def _room_lines(room):
+    header = room.name
+    if room.floor:
+        header += f' (Floor: {room.floor})'
+    lines = [f'- {header}']
+    if room.appliances:
+        names = ', '.join(sorted(a.name for a in room.appliances))
+        lines.append(f'  Appliances: {names}')
+    if room.paint_colors:
+        names = ', '.join(sorted(p.color_name or p.location for p in room.paint_colors))
+        lines.append(f'  Paint colors: {names}')
+    return lines
+
+
 def _appliance_section(appliance):
     label = CATEGORY_LABELS.get(appliance.category, appliance.category)
     lines = [f'### {appliance.name} ({label})', '']
@@ -133,6 +149,7 @@ def _appliance_section(appliance):
         ('Model number', appliance.model_number),
         ('Serial number', appliance.serial_number),
         ('Location', appliance.location),
+        ('Room', appliance.room.name if appliance.room else None),
         ('Installed', appliance.install_date.isoformat() if appliance.install_date else None),
         ('Purchased', appliance.purchase_date.isoformat() if appliance.purchase_date else None),
     ):
@@ -196,6 +213,14 @@ def build_context_markdown(household):
     lines.append('### Home documents')
     lines.extend(_document_lines(document_service.get_documents_for('home', household.id)))
     lines.append('')
+
+    rooms = sorted(household.rooms, key=lambda r: (r.floor or '', r.name))
+    if rooms:
+        lines.append('## Rooms')
+        lines.append('')
+        for room in rooms:
+            lines.extend(_room_lines(room))
+        lines.append('')
 
     active = sorted(
         (a for a in household.appliances if a.status == ApplianceStatus.active), key=lambda a: a.name
