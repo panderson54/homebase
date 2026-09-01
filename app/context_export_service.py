@@ -62,15 +62,18 @@ def _consumable_lines(consumable):
     return lines
 
 
-def _service_record_lines(records, show_vendor=True, show_appliance=False):
+def _service_record_lines(records, show_vendor=True, show_target=False):
     if not records:
         return ['  (no service visits logged)']
     lines = []
     for record in records:
         vendor = f' — {record.vendor.name}' if show_vendor and record.vendor else ''
-        appliance = f' — {record.appliance.name}' if show_appliance and record.appliance else ''
+        target = record.appliance or record.zone
+        target_str = f' — {target.name}' if show_target and target else ''
         cost = f' — ${record.cost:.2f}' if record.cost is not None else ''
-        lines.append(f'  - {record.service_date.isoformat()}{vendor}{appliance}{cost}')
+        lines.append(
+            f'  - {record.service_date.isoformat()}{vendor}{target_str}{cost} [{record.category.value}]'
+        )
         if record.notes:
             lines.append(f'    Notes: {record.notes}')
     return lines
@@ -96,7 +99,20 @@ def _vendor_section(vendor):
     lines.append('')
 
     lines.append('#### Service history')
-    lines.extend(_service_record_lines(vendor.services, show_vendor=False, show_appliance=True))
+    lines.extend(_service_record_lines(vendor.services, show_vendor=False, show_target=True))
+    lines.append('')
+
+    return lines
+
+
+def _zone_section(zone):
+    lines = [f'### {zone.name}', '']
+    if zone.notes:
+        lines.append(f'- Notes: {zone.notes}')
+    lines.append('')
+
+    lines.append('#### Service history')
+    lines.extend(_service_record_lines(zone.service_records))
     lines.append('')
 
     return lines
@@ -221,6 +237,13 @@ def build_context_markdown(household):
         for room in rooms:
             lines.extend(_room_lines(room))
         lines.append('')
+
+    zones = sorted(household.zones, key=lambda z: z.name)
+    if zones:
+        lines.append('## Zones')
+        lines.append('')
+        for zone in zones:
+            lines.extend(_zone_section(zone))
 
     active = sorted(
         (a for a in household.appliances if a.status == ApplianceStatus.active), key=lambda a: a.name

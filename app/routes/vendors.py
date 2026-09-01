@@ -2,9 +2,11 @@ from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app import db, document_service, logo_service
-from app.models import Appliance, ApplianceStatus, ServiceRecord, Vendor
+from app.models import Appliance, ApplianceStatus, ServiceCategory, ServiceRecord, Vendor, Zone
 from app.routes import main_bp
-from app.routes.helpers import get_household_vendor_or_404, parse_date, parse_decimal, slugify
+from app.routes.helpers import (
+    get_household_vendor_or_404, parse_date, parse_decimal, parse_service_target, slugify,
+)
 from app.vendor_types_data import VENDOR_TYPE_LABELS
 
 
@@ -67,9 +69,10 @@ def vendor_detail(vendor_id):
     appliances = Appliance.query.filter_by(
         household_id=current_user.household_id, status=ApplianceStatus.active
     ).order_by(Appliance.name).all()
+    zones = Zone.query.filter_by(household_id=current_user.household_id).order_by(Zone.name).all()
     return render_template(
         'vendors/detail.html', vendor=vendor, documents=documents, primary_photo=primary_photo,
-        appliances=appliances, vendor_type_labels=VENDOR_TYPE_LABELS,
+        appliances=appliances, zones=zones, vendor_type_labels=VENDOR_TYPE_LABELS,
     )
 
 
@@ -134,20 +137,17 @@ def vendor_document_delete(vendor_id, document_id):
 @login_required
 def vendor_service_create(vendor_id):
     vendor = get_household_vendor_or_404(vendor_id)
-    appliance_id = request.form.get('appliance_id', '').strip()
-    appliance = None
-    if appliance_id:
-        appliance = Appliance.query.filter_by(
-            id=appliance_id, household_id=vendor.household_id
-        ).first()
+    appliance, zone = parse_service_target(request.form.get('target'), vendor.household_id)
 
     db.session.add(ServiceRecord(
         household_id=vendor.household_id,
         vendor_id=vendor.id,
         appliance_id=appliance.id if appliance else None,
+        zone_id=zone.id if zone else None,
         service_date=parse_date(request.form.get('service_date')),
         notes=request.form.get('notes', '').strip() or None,
         cost=parse_decimal(request.form.get('cost')),
+        category=ServiceCategory(request.form.get('category', 'maintenance')),
     ))
     db.session.commit()
     return redirect(url_for('main.vendor_detail', vendor_id=vendor.id))

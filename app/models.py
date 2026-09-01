@@ -47,6 +47,11 @@ class TemplateKind(str, enum.Enum):
     consumable = 'consumable'
 
 
+class ServiceCategory(str, enum.Enum):
+    maintenance = 'maintenance'
+    improvement = 'improvement'
+
+
 class Household(db.Model):
     __tablename__ = 'households'
 
@@ -64,6 +69,9 @@ class Household(db.Model):
     rooms = db.relationship(
         'Room', back_populates='household', cascade='all, delete-orphan',
         order_by='Room.floor, Room.name',
+    )
+    zones = db.relationship(
+        'Zone', back_populates='household', cascade='all, delete-orphan', order_by='Zone.name',
     )
 
     @property
@@ -242,12 +250,17 @@ class ServiceRecord(db.Model):
     household_id = db.Column(db.Integer, db.ForeignKey('households.id'), nullable=False)
     vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'))
     appliance_id = db.Column(db.Integer, db.ForeignKey('appliances.id'))
+    zone_id = db.Column(db.Integer, db.ForeignKey('zones.id'))
     service_date = db.Column(db.Date, nullable=False)
     notes = db.Column(db.Text)
     cost = db.Column(db.Numeric(10, 2))
+    category = db.Column(
+        db.Enum(ServiceCategory, native_enum=False), nullable=False, default=ServiceCategory.maintenance
+    )
 
     vendor = db.relationship('Vendor', back_populates='services')
     appliance = db.relationship('Appliance', back_populates='service_records')
+    zone = db.relationship('Zone', back_populates='service_records')
 
 
 class Vendor(db.Model):
@@ -312,6 +325,24 @@ class Room(db.Model):
     household = db.relationship('Household', back_populates='rooms')
     appliances = db.relationship('Appliance', back_populates='room')
     paint_colors = db.relationship('PaintColor', back_populates='room')
+
+
+class Zone(db.Model):
+    """An exterior or whole-house maintenance area that isn't a Room (roof,
+    gutters, garden, siding, windows, solar, etc.). Services can attach to a
+    Zone the same way they attach to an Appliance."""
+    __tablename__ = 'zones'
+
+    id = db.Column(db.Integer, primary_key=True)
+    household_id = db.Column(db.Integer, db.ForeignKey('households.id'), nullable=False)
+    name = db.Column(db.String(120), nullable=False)
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    household = db.relationship('Household', back_populates='zones')
+    service_records = db.relationship(
+        'ServiceRecord', back_populates='zone', order_by='ServiceRecord.service_date.desc()',
+    )
 
 
 class CategoryTemplate(db.Model):
