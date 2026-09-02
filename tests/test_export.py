@@ -3,7 +3,7 @@ from datetime import date
 from app.context_export_service import build_context_markdown
 from app.models import (
     Appliance, ApplianceStatus, Document, DocumentLink, MaintenanceLog, MaintenanceTask, PaintColor, Room,
-    ServiceRecord, Vendor,
+    ServiceRecord, Vendor, Zone,
 )
 
 
@@ -48,6 +48,7 @@ class TestBuildContextMarkdown:
         assert 'ACME HVAC' in markdown
         assert '189.00' in markdown
         assert '## Vendors' in markdown
+        assert '[maintenance]' in markdown
 
     def test_archived_appliances_get_their_own_section(self, app, db, household):
         active = Appliance(household_id=household.id, name='Fridge', category='refrigerator')
@@ -147,6 +148,30 @@ class TestBuildContextMarkdown:
     def test_no_rooms_section_when_none_exist(self, app, db, household):
         markdown = build_context_markdown(household)
         assert '## Rooms' not in markdown
+
+    def test_zones_section_lists_zone_and_service_history(self, app, db, household):
+        zone = Zone(household_id=household.id, name='Roof', notes='Reshingled 2019')
+        db.session.add(zone)
+        vendor = Vendor(household_id=household.id, name='Roofers Inc', vendor_type='roofing')
+        db.session.add(vendor)
+        db.session.commit()
+        db.session.add(ServiceRecord(
+            household_id=household.id, vendor_id=vendor.id, zone_id=zone.id,
+            service_date=date(2026, 6, 1), notes='Gutter cleaning', category='improvement',
+        ))
+        db.session.commit()
+
+        markdown = build_context_markdown(household)
+        assert '## Zones' in markdown
+        zones_section = markdown.split('## Zones')[1].split('\n## ')[0]
+        assert 'Roof' in zones_section
+        assert 'Reshingled 2019' in zones_section
+        assert 'Gutter cleaning' in zones_section
+        assert '[improvement]' in zones_section
+
+    def test_no_zones_section_when_none_exist(self, app, db, household):
+        markdown = build_context_markdown(household)
+        assert '## Zones' not in markdown
 
     def test_uploaded_file_documents_are_omitted(self, app, db, household):
         upload = Document(

@@ -121,9 +121,12 @@
             <strong>{{ record.service_date|datefmt }}</strong>
             {% if record.appliance %}
               — <a href="{{ url_for('main.appliance_detail', appliance_id=record.appliance.id) }}">{{ record.appliance.name }}</a>
+            {% elif record.zone %}
+              — <a href="{{ url_for('main.zone_detail', zone_id=record.zone.id) }}">{{ record.zone.name }}</a>
             {% else %}
               <span class="text-muted small">— not appliance-specific</span>
             {% endif %}
+            <span class="badge text-bg-light border text-capitalize">{{ record.category.value }}</span>
             {% if record.cost %} <span class="text-muted small font-tabular">{{ record.cost|currency }}</span>{% endif %}
             {% if record.notes %}<div class="small text-muted">{{ record.notes }}</div>{% endif %}
           </div>
@@ -150,12 +153,30 @@
       <input type="date" class="form-control form-control-sm" name="service_date" required>
     </div>
     <div class="col-md-3">
-      <label class="form-label">Appliance</label>
-      <select class="form-select form-select-sm" name="appliance_id">
-        <option value="">Not appliance-specific</option>
-        {% for appliance in appliances %}
-          <option value="{{ appliance.id }}">{{ appliance.name }}</option>
-        {% endfor %}
+      <label class="form-label">Attached to</label>
+      <select class="form-select form-select-sm" name="target">
+        <option value="">Not appliance/zone-specific</option>
+        {% if appliances %}
+          <optgroup label="Appliance">
+            {% for appliance in appliances %}
+              <option value="appliance:{{ appliance.id }}">{{ appliance.name }}</option>
+            {% endfor %}
+          </optgroup>
+        {% endif %}
+        {% if zones %}
+          <optgroup label="Zone">
+            {% for zone in zones %}
+              <option value="zone:{{ zone.id }}">{{ zone.name }}</option>
+            {% endfor %}
+          </optgroup>
+        {% endif %}
+      </select>
+    </div>
+    <div class="col-auto">
+      <label class="form-label">Category</label>
+      <select class="form-select form-select-sm" name="category">
+        <option value="maintenance" selected>Maintenance</option>
+        <option value="improvement">Improvement</option>
       </select>
     </div>
     <div class="col-auto">

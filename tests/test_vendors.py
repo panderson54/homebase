@@ -3,7 +3,7 @@ import io
 from PIL import Image
 
 from app import document_service
-from app.models import Appliance, Household, ServiceRecord, Vendor
+from app.models import Appliance, Household, ServiceRecord, Vendor, Zone
 
 
 def _make_png_bytes():
@@ -155,6 +155,7 @@ class TestVendorServiceVisits:
         assert record.appliance_id is None
         assert record.household_id == household.id
         assert record.notes == 'Whole-house inspection'
+        assert record.category.value == 'maintenance'
 
     def test_log_visit_with_appliance(self, logged_in_client, db, household, vendor):
         appliance = Appliance(household_id=household.id, name='Furnace', category='furnace')
@@ -163,12 +164,13 @@ class TestVendorServiceVisits:
 
         resp = logged_in_client.post(f'/vendors/{vendor.id}/services', data={
             'service_date': '2026-03-01',
-            'appliance_id': appliance.id,
+            'target': f'appliance:{appliance.id}',
             'cost': '150.00',
         })
         assert resp.status_code == 302
         record = ServiceRecord.query.filter_by(vendor_id=vendor.id).first()
         assert record.appliance_id == appliance.id
+        assert record.zone_id is None
         assert record.cost == 150
 
         # shows up on both the vendor's and the appliance's pages
@@ -177,6 +179,28 @@ class TestVendorServiceVisits:
         appliance_page = logged_in_client.get(f'/appliances/{appliance.id}')
         assert vendor.name.encode() in appliance_page.data
 
+    def test_log_visit_with_zone_and_category(self, logged_in_client, db, household, vendor):
+        zone = Zone(household_id=household.id, name='Roof')
+        db.session.add(zone)
+        db.session.commit()
+
+        resp = logged_in_client.post(f'/vendors/{vendor.id}/services', data={
+            'service_date': '2026-03-01',
+            'target': f'zone:{zone.id}',
+            'category': 'improvement',
+        })
+        assert resp.status_code == 302
+        record = ServiceRecord.query.filter_by(vendor_id=vendor.id).first()
+        assert record.zone_id == zone.id
+        assert record.appliance_id is None
+        assert record.category.value == 'improvement'
+
+        # shows up on both the vendor's and the zone's pages
+        vendor_page = logged_in_client.get(f'/vendors/{vendor.id}')
+        assert b'Roof' in vendor_page.data
+        zone_page = logged_in_client.get(f'/zones/{zone.id}')
+        assert vendor.name.encode() in zone_page.data
+
     def test_delete_visit_with_no_appliance_redirects_to_vendor(self, logged_in_client, db, vendor):
         logged_in_client.post(f'/vendors/{vendor.id}/services', data={'service_date': '2026-03-01'})
         record = ServiceRecord.query.filter_by(vendor_id=vendor.id).first()
@@ -184,3 +208,16 @@ class TestVendorServiceVisits:
         resp = logged_in_client.post(f'/service-records/{record.id}/delete')
         assert resp.status_code == 302
         assert resp.headers['Location'].endswith(f'/vendors/{vendor.id}')
+
+    def test_delete_visit_with_zone_redirects_to_zone(self, logged_in_client, db, household, vendor):
+        zone = Zone(household_id=household.id, name='Garden')
+        db.session.add(zone)
+        db.session.commit()
+        logged_in_client.post(f'/vendors/{vendor.id}/services', data={
+            'service_date': '2026-03-01', 'target': f'zone:{zone.id}',
+        })
+        record = ServiceRecord.query.filter_by(vendor_id=vendor.id).first()
+
+        resp = logged_in_client.post(f'/service-records/{record.id}/delete')
+        assert resp.status_code == 302
+        assert resp.headers['Location'].endswith(f'/zones/{zone.id}')

@@ -267,6 +267,7 @@
             {% if record.vendor %} —
               <a href="{{ url_for('main.vendor_detail', vendor_id=record.vendor.id) }}">{{ record.vendor.name }}</a>
             {% endif %}
+            <span class="badge text-bg-light border text-capitalize">{{ record.category.value }}</span>
             {% if record.cost %} <span class="text-muted small font-tabular">{{ record.cost|currency }}</span>{% endif %}
             {% if record.notes %}<div class="small text-muted">{{ record.notes }}</div>{% endif %}
           </div>
@@ -309,6 +310,13 @@
     <div class="col-auto d-none" id="new_vendor_type_field">
       <label class="form-label">Type</label>
       <input type="text" class="form-control form-control-sm" name="new_vendor_type" placeholder="e.g. HVAC">
+    </div>
+    <div class="col-auto">
+      <label class="form-label">Category</label>
+      <select class="form-select form-select-sm" name="category">
+        <option value="maintenance" selected>Maintenance</option>
+        <option value="improvement">Improvement</option>
+      </select>
     </div>
     <div class="col-auto">
       <label class="form-label">Cost</label>

@@ -23,14 +23,33 @@
   </div>
 
   <div class="col-md-5">
-    <label class="form-label" for="appliance_id">Appliance</label>
-    <select class="form-select" id="appliance_id" name="appliance_id">
-      <option value="">Not appliance-specific</option>
-      {% for appliance in appliances %}
-        <option value="{{ appliance.id }}" {{ 'selected' if record.appliance_id == appliance.id }}>{{ appliance.name }}</option>
-      {% endfor %}
+    <label class="form-label" for="target">Attached to</label>
+    <select class="form-select" id="target" name="target">
+      <option value="">Not appliance/zone-specific</option>
+      {% if appliances %}
+        <optgroup label="Appliance">
+          {% for appliance in appliances %}
+            <option value="appliance:{{ appliance.id }}" {{ 'selected' if record.appliance_id == appliance.id }}>{{ appliance.name }}</option>
+          {% endfor %}
+        </optgroup>
+      {% endif %}
+      {% if zones %}
+        <optgroup label="Zone">
+          {% for zone in zones %}
+            <option value="zone:{{ zone.id }}" {{ 'selected' if record.zone_id == zone.id }}>{{ zone.name }}</option>
+          {% endfor %}
+        </optgroup>
+      {% endif %}
     </select>
-    <div class="form-text">Attach this visit to an appliance now that it's been added, if it wasn't yet when logged.</div>
+    <div class="form-text">Attach this visit to an appliance or zone now that it's been added, if it wasn't yet when logged.</div>
+  </div>
+
+  <div class="col-md-2">
+    <label class="form-label" for="category">Category</label>
+    <select class="form-select" id="category" name="category">
+      <option value="maintenance" {{ 'selected' if record.category.value == 'maintenance' }}>Maintenance</option>
+      <option value="improvement" {{ 'selected' if record.category.value == 'improvement' }}>Improvement</option>
+    </select>
   </div>
 
   <div class="col-md-3">
@@ -49,7 +68,9 @@
 
   <div class="col-12">
     <button type="submit" class="btn btn-primary">Save changes</button>
-    <a href="{{ url_for('main.appliance_detail', appliance_id=record.appliance_id) if record.appliance_id else url_for('main.vendor_detail', vendor_id=record.vendor_id) }}"
+    <a href="{{ url_for('main.appliance_detail', appliance_id=record.appliance_id) if record.appliance_id
+              else url_for('main.zone_detail', zone_id=record.zone_id) if record.zone_id
+              else url_for('main.vendor_detail', vendor_id=record.vendor_id) }}"
        class="btn btn-outline-secondary">Cancel</a>
   </div>
 </form>

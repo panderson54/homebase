@@ -2,7 +2,7 @@ from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app import db, document_service
-from app.models import PaintColor, Room
+from app.models import PaintColor, Room, Zone
 from app.routes import main_bp
 
 
@@ -28,12 +28,13 @@ def home():
         household_id=household.id
     ).order_by(PaintColor.location).all()
     rooms = Room.query.filter_by(household_id=household.id).order_by(Room.floor, Room.name).all()
+    zones = Zone.query.filter_by(household_id=household.id).order_by(Zone.name).all()
     active_tab = request.args.get('tab')
-    if active_tab not in ('paint', 'rooms'):
+    if active_tab not in ('paint', 'rooms', 'zones'):
         active_tab = 'overview'
     return render_template(
         'home/home.html', household=household, documents=documents, primary_photo=primary_photo,
-        paint_colors=paint_colors, rooms=rooms, active_tab=active_tab,
+        paint_colors=paint_colors, rooms=rooms, zones=zones, active_tab=active_tab,
     )
 
 

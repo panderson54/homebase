@@ -4,7 +4,7 @@ import re
 from flask import abort
 from flask_login import current_user
 
-from app.models import Appliance, PaintColor, Room, Vendor
+from app.models import Appliance, PaintColor, Room, Vendor, Zone
 
 _HEX_COLOR_RE = re.compile(r'^#[0-9A-Fa-f]{6}$')
 
@@ -59,6 +59,35 @@ def get_household_room_or_404(room_id):
     if room is None:
         abort(404)
     return room
+
+
+def get_household_zone_or_404(zone_id):
+    """Fetch a zone scoped to the current user's household, or 404."""
+    zone = Zone.query.filter_by(
+        id=zone_id, household_id=current_user.household_id
+    ).first()
+    if zone is None:
+        abort(404)
+    return zone
+
+
+def parse_service_target(value, household_id):
+    """Parse a service-record form's 'appliance:<id>' / 'zone:<id>' target select
+    into (appliance, zone) — both None if blank, malformed, or the referenced row
+    isn't in this household."""
+    value = (value or '').strip()
+    if not value:
+        return None, None
+    kind, _, raw_id = value.partition(':')
+    try:
+        target_id = int(raw_id)
+    except ValueError:
+        return None, None
+    if kind == 'appliance':
+        return Appliance.query.filter_by(id=target_id, household_id=household_id).first(), None
+    if kind == 'zone':
+        return None, Zone.query.filter_by(id=target_id, household_id=household_id).first()
+    return None, None
 
 
 def parse_hex_color(value):
