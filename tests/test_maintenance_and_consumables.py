@@ -1,6 +1,6 @@
 from datetime import date
 
-from app.models import Appliance, Consumable, MaintenanceLog, MaintenanceTask, ServiceRecord
+from app.models import Appliance, Consumable, MaintenanceLog, MaintenanceTask, ServiceRecord, Zone
 
 
 class TestMaintenanceTasks:
@@ -181,14 +181,39 @@ class TestServiceRecords:
         resp = logged_in_client.post(f'/service-records/{record.id}/edit', data={
             'service_date': '2026-01-01',
             'vendor_id': vendor.id,
-            'appliance_id': appliance.id,
+            'target': f'appliance:{appliance.id}',
             'cost': '150.00',
             'notes': 'Annual tune-up',
+            'category': 'improvement',
         })
         assert resp.status_code == 302
         db.session.refresh(record)
         assert record.appliance_id == appliance.id
         assert record.notes == 'Annual tune-up'
+        assert record.category.value == 'improvement'
+
+    def test_edit_reassigns_from_appliance_to_zone(self, logged_in_client, db, household, vendor):
+        appliance = Appliance(household_id=household.id, name='Furnace', category='furnace')
+        zone = Zone(household_id=household.id, name='Roof')
+        db.session.add_all([appliance, zone])
+        db.session.commit()
+        record = ServiceRecord(
+            household_id=household.id, vendor_id=vendor.id, appliance_id=appliance.id,
+            service_date=date(2026, 1, 1),
+        )
+        db.session.add(record)
+        db.session.commit()
+
+        resp = logged_in_client.post(f'/service-records/{record.id}/edit', data={
+            'service_date': '2026-01-01',
+            'vendor_id': vendor.id,
+            'target': f'zone:{zone.id}',
+        })
+        assert resp.status_code == 302
+        assert resp.headers['Location'].endswith(f'/zones/{zone.id}')
+        db.session.refresh(record)
+        assert record.appliance_id is None
+        assert record.zone_id == zone.id
 
     def test_edit_requires_vendor(self, logged_in_client, db, household, vendor):
         record = ServiceRecord(household_id=household.id, vendor_id=vendor.id, service_date=date(2026, 1, 1))

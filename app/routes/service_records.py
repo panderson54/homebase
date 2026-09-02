@@ -2,9 +2,11 @@ from flask import abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app import db, vendor_service
-from app.models import Appliance, ServiceRecord, Vendor
+from app.models import Appliance, ServiceCategory, ServiceRecord, Vendor, Zone
 from app.routes import main_bp
-from app.routes.helpers import get_household_appliance_or_404, parse_date, parse_decimal, slugify
+from app.routes.helpers import (
+    get_household_appliance_or_404, parse_date, parse_decimal, parse_service_target, slugify,
+)
 
 
 def _get_service_record_or_404(record_id):
@@ -37,6 +39,7 @@ def service_record_create(appliance_id):
         service_date=parse_date(request.form.get('service_date')),
         notes=request.form.get('notes', '').strip() or None,
         cost=parse_decimal(request.form.get('cost')),
+        category=ServiceCategory(request.form.get('category', 'maintenance')),
     ))
     db.session.commit()
     return redirect(url_for('main.appliance_detail', appliance_id=appliance.id))
@@ -56,26 +59,28 @@ def service_record_edit(record_id):
             flash('Select a vendor.', 'danger')
             return redirect(url_for('main.service_record_edit', record_id=record.id))
 
-        appliance_id = request.form.get('appliance_id', '').strip()
-        appliance = None
-        if appliance_id:
-            appliance = Appliance.query.filter_by(id=appliance_id, household_id=record.household_id).first()
+        appliance, zone = parse_service_target(request.form.get('target'), record.household_id)
 
         record.vendor_id = vendor.id
         record.appliance_id = appliance.id if appliance else None
+        record.zone_id = zone.id if zone else None
         record.service_date = parse_date(request.form.get('service_date'))
         record.notes = request.form.get('notes', '').strip() or None
         record.cost = parse_decimal(request.form.get('cost'))
+        record.category = ServiceCategory(request.form.get('category', 'maintenance'))
         db.session.commit()
 
         if record.appliance_id:
             return redirect(url_for('main.appliance_detail', appliance_id=record.appliance_id))
+        if record.zone_id:
+            return redirect(url_for('main.zone_detail', zone_id=record.zone_id))
         return redirect(url_for('main.vendor_detail', vendor_id=record.vendor_id))
 
     vendors = Vendor.query.filter_by(household_id=record.household_id).order_by(Vendor.name).all()
     appliances = Appliance.query.filter_by(household_id=record.household_id).order_by(Appliance.name).all()
+    zones = Zone.query.filter_by(household_id=record.household_id).order_by(Zone.name).all()
     return render_template(
-        'service_records/edit.html', record=record, vendors=vendors, appliances=appliances,
+        'service_records/edit.html', record=record, vendors=vendors, appliances=appliances, zones=zones,
     )
 
 
@@ -84,9 +89,12 @@ def service_record_edit(record_id):
 def service_record_delete(record_id):
     record = _get_service_record_or_404(record_id)
     appliance_id = record.appliance_id
+    zone_id = record.zone_id
     vendor_id = record.vendor_id
     db.session.delete(record)
     db.session.commit()
     if appliance_id:
         return redirect(url_for('main.appliance_detail', appliance_id=appliance_id))
+    if zone_id:
+        return redirect(url_for('main.zone_detail', zone_id=zone_id))
     return redirect(url_for('main.vendor_detail', vendor_id=vendor_id))

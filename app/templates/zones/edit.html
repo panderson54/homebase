@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block title %}Edit {{ zone.name }} — Homebase{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('main.zone_detail', zone_id=zone.id) }}" class="text-muted small d-inline-block mb-3">&larr; Back to {{ zone.name }}</a>
+<h1 class="h3 mb-4">Edit zone</h1>
+
+<form method="post" class="row g-3">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="col-md-6">
+    <label class="form-label" for="name">Name</label>
+    <input type="text" class="form-control" id="name" name="name" required value="{{ zone.name }}">
+  </div>
+
+  <div class="col-12">
+    <label class="form-label" for="notes">Notes</label>
+    <textarea class="form-control" id="notes" name="notes" rows="3">{{ zone.notes or '' }}</textarea>
+  </div>
+
+  <div class="col-12">
+    <button type="submit" class="btn btn-primary">Save changes</button>
+    <a href="{{ url_for('main.zone_detail', zone_id=zone.id) }}" class="btn btn-outline-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}

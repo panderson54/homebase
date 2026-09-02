@@ -9,10 +9,13 @@
     <a class="nav-link {{ 'active' if active_tab == 'overview' }}" href="{{ url_for('main.home') }}">Overview</a>
   </li>
   <li class="nav-item">
+    <a class="nav-link {{ 'active' if active_tab == 'rooms' }}" href="{{ url_for('main.home', tab='rooms') }}">Rooms</a>
+  </li>
+  <li class="nav-item">
     <a class="nav-link {{ 'active' if active_tab == 'paint' }}" href="{{ url_for('main.home', tab='paint') }}">Paint</a>
   </li>
   <li class="nav-item">
-    <a class="nav-link {{ 'active' if active_tab == 'rooms' }}" href="{{ url_for('main.home', tab='rooms') }}">Rooms</a>
+    <a class="nav-link {{ 'active' if active_tab == 'zones' }}" href="{{ url_for('main.home', tab='zones') }}">Zones</a>
   </li>
 </ul>
 
@@ -204,6 +207,45 @@
   </div>
   <div class="col-auto">
     <button type="submit" class="btn btn-sm btn-primary">Add room</button>
+  </div>
+</form>
+
+{% elif active_tab == 'zones' %}
+<p class="text-muted small">Zones are exterior or whole-house maintenance areas that aren't a room — roof, gutters, garden, siding, windows, solar, and the like.</p>
+
+{% if zones %}
+  <div class="list-group mb-3">
+    {% for zone in zones %}
+      <div class="list-group-item d-flex justify-content-between align-items-center">
+        <div>
+          <strong><a href="{{ url_for('main.zone_detail', zone_id=zone.id) }}">{{ zone.name }}</a></strong>
+          <span class="text-muted small">
+            {{ zone.service_records|length }} service record{{ 's' if zone.service_records|length != 1 }}
+          </span>
+        </div>
+        <div class="d-flex gap-2">
+          <a href="{{ url_for('main.zone_edit', zone_id=zone.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+          <form method="post" action="{{ url_for('main.zone_delete', zone_id=zone.id) }}"
+                data-confirm="Remove {{ zone.name }}? Its service history will be removed too.">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+          </form>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="text-muted">No zones yet.</p>
+{% endif %}
+
+<form method="post" action="{{ url_for('main.zone_new') }}" class="row g-2 align-items-end">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="col-auto">
+    <label class="form-label">Name</label>
+    <input type="text" class="form-control form-control-sm" name="name" placeholder="e.g. Roof" required>
+  </div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-sm btn-primary">Add zone</button>
   </div>
 </form>
 {% endif %}

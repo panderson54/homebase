@@ -14,6 +14,7 @@ from app.routes import (  # noqa: E402,F401  (must import after main_bp is defin
     vendors,
     paint_colors,
     rooms,
+    zones,
     home,
     export,
 )
