@@ -23,16 +23,16 @@
           <th>Name</th>
           <th>Category</th>
           <th>Make / model</th>
-          <th>Location</th>
+          <th>Room</th>
         </tr>
       </thead>
       <tbody>
         {% for appliance in appliances %}
         <tr class="cursor-pointer" onclick="window.location='{{ url_for('main.appliance_detail', appliance_id=appliance.id) }}'">
           <td><a href="{{ url_for('main.appliance_detail', appliance_id=appliance.id) }}">{{ appliance.name }}</a></td>
-          <td>{{ category_labels.get(appliance.category, appliance.category) }}</td>
+          <td>{{ appliance.category_label }}</td>
           <td>{{ appliance.make or '' }} {{ appliance.model_number or '' }}</td>
-          <td>{{ appliance.location or '' }}</td>
+          <td>{{ appliance.room.name if appliance.room else '' }}</td>
         </tr>
         {% endfor %}
       </tbody>

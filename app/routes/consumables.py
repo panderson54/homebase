@@ -1,6 +1,6 @@
 from datetime import date
 
-from flask import redirect, request, url_for
+from flask import redirect, render_template, request, url_for
 from flask_login import login_required
 
 from app import db
@@ -33,6 +33,25 @@ def consumable_create(appliance_id):
     db.session.add(consumable)
     db.session.commit()
     return redirect(url_for('main.appliance_detail', appliance_id=appliance.id))
+
+
+@main_bp.route('/consumables/<int:consumable_id>/edit', methods=['GET', 'POST'])
+@login_required
+def consumable_edit(consumable_id):
+    consumable = _get_consumable_or_404(consumable_id)
+
+    if request.method == 'POST':
+        frequency_value = request.form.get('frequency_value', '').strip()
+        frequency_unit = request.form.get('frequency_unit', '').strip()
+        consumable.name = request.form.get('name', '').strip()
+        consumable.part_number = request.form.get('part_number', '').strip() or None
+        consumable.purchase_url = request.form.get('purchase_url', '').strip() or None
+        consumable.frequency_value = int(frequency_value) if frequency_value else None
+        consumable.frequency_unit = FrequencyUnit(frequency_unit) if frequency_unit else None
+        db.session.commit()
+        return redirect(url_for('main.appliance_detail', appliance_id=consumable.appliance_id))
+
+    return render_template('consumables/edit.html', consumable=consumable)
 
 
 @main_bp.route('/consumables/<int:consumable_id>/replace', methods=['POST'])

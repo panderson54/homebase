@@ -4,7 +4,7 @@ import re
 from flask import abort
 from flask_login import current_user
 
-from app.models import Appliance, PaintColor, Room, Vendor, Zone
+from app.models import Appliance, FrequencyUnit, PaintColor, Room, Vendor, Zone
 
 _HEX_COLOR_RE = re.compile(r'^#[0-9A-Fa-f]{6}$')
 
@@ -118,3 +118,13 @@ def parse_decimal(value):
         return Decimal(value)
     except InvalidOperation:
         return None
+
+
+def parse_pro_service_interval(form):
+    """Parse an Appliance/Zone edit form's paired interval-value + interval-unit
+    fields; both must be present or the interval is treated as unset."""
+    value = form.get('pro_service_interval_value', '').strip()
+    unit = form.get('pro_service_interval_unit', '').strip()
+    if not value or not unit:
+        return None, None
+    return int(value), FrequencyUnit(unit)

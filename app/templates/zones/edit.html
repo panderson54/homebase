@@ -13,6 +13,24 @@
     <input type="text" class="form-control" id="name" name="name" required value="{{ zone.name }}">
   </div>
 
+  <div class="col-md-6">
+    <label class="form-label">Professional service interval</label>
+    <div class="input-group">
+      <input type="number" min="1" class="form-control" id="pro_service_interval_value" name="pro_service_interval_value"
+             value="{{ zone.pro_service_interval_value or '' }}" placeholder="e.g. 1">
+      <select class="form-select" id="pro_service_interval_unit" name="pro_service_interval_unit">
+        <option value="">—</option>
+        {% for unit in ['days', 'weeks', 'months', 'years'] %}
+          <option value="{{ unit }}"
+            {{ 'selected' if zone.pro_service_interval_unit and zone.pro_service_interval_unit.value == unit }}>
+            {{ unit }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-text">e.g. "1 years" for an annual roof inspection. Leave blank if none.</div>
+  </div>
+
   <div class="col-12">
     <label class="form-label" for="notes">Notes</label>
     <textarea class="form-control" id="notes" name="notes" rows="3">{{ zone.notes or '' }}</textarea>

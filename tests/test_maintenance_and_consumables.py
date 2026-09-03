@@ -1,6 +1,6 @@
 from datetime import date
 
-from app.models import Appliance, Consumable, MaintenanceLog, MaintenanceTask, ServiceRecord, Zone
+from app.models import Appliance, Consumable, Household, MaintenanceLog, MaintenanceTask, ServiceRecord, Zone
 
 
 class TestMaintenanceTasks:
@@ -72,6 +72,67 @@ class TestMaintenanceTasks:
         assert resp.status_code == 404
 
 
+class TestZoneMaintenanceTasks:
+    def test_create_task(self, logged_in_client, db, household):
+        zone = Zone(household_id=household.id, name='Roof')
+        db.session.add(zone)
+        db.session.commit()
+
+        resp = logged_in_client.post(f'/zones/{zone.id}/maintenance-tasks', data={
+            'title': 'Clear gutters',
+            'frequency_value': '6',
+            'frequency_unit': 'months',
+        })
+        assert resp.status_code == 302
+        assert resp.headers['Location'].endswith(f'/zones/{zone.id}')
+        task = MaintenanceTask.query.filter_by(zone_id=zone.id).first()
+        assert task.title == 'Clear gutters'
+        assert task.appliance_id is None
+
+    def test_complete_task_redirects_to_zone(self, logged_in_client, db, household):
+        zone = Zone(household_id=household.id, name='Roof')
+        db.session.add(zone)
+        db.session.commit()
+        task = MaintenanceTask(zone_id=zone.id, title='Clear gutters', frequency_value=6, frequency_unit='months')
+        db.session.add(task)
+        db.session.commit()
+
+        resp = logged_in_client.post(f'/maintenance-tasks/{task.id}/complete', data={
+            'completed_at': '2026-01-01',
+        })
+        assert resp.status_code == 302
+        assert resp.headers['Location'].endswith(f'/zones/{zone.id}')
+        db.session.refresh(task)
+        assert task.last_completed_at == date(2026, 1, 1)
+
+    def test_delete_task_redirects_to_zone(self, logged_in_client, db, household):
+        zone = Zone(household_id=household.id, name='Roof')
+        db.session.add(zone)
+        db.session.commit()
+        task = MaintenanceTask(zone_id=zone.id, title='Clear gutters', frequency_value=6, frequency_unit='months')
+        db.session.add(task)
+        db.session.commit()
+        task_id = task.id
+
+        resp = logged_in_client.post(f'/maintenance-tasks/{task_id}/delete')
+        assert resp.status_code == 302
+        assert resp.headers['Location'].endswith(f'/zones/{zone.id}')
+        assert db.session.get(MaintenanceTask, task_id) is None
+
+    def test_create_task_for_other_household_is_404(self, logged_in_client, db):
+        other = Household(name='Other')
+        db.session.add(other)
+        db.session.commit()
+        zone = Zone(household_id=other.id, name='Roof')
+        db.session.add(zone)
+        db.session.commit()
+
+        resp = logged_in_client.post(f'/zones/{zone.id}/maintenance-tasks', data={
+            'title': 'Clear gutters', 'frequency_value': '6', 'frequency_unit': 'months',
+        })
+        assert resp.status_code == 404
+
+
 class TestConsumables:
     def test_create_and_replace(self, logged_in_client, db, household):
         appliance = Appliance(household_id=household.id, name='Fridge', category='refrigerator')
@@ -107,6 +168,42 @@ class TestConsumables:
         logged_in_client.post(f'/consumables/{consumable.id}/replace')
         db.session.refresh(consumable)
         assert consumable.next_due_at is None
+
+    def test_edit_updates_fields(self, logged_in_client, db, household):
+        appliance = Appliance(household_id=household.id, name='Fridge', category='refrigerator')
+        db.session.add(appliance)
+        db.session.commit()
+        logged_in_client.post(f'/appliances/{appliance.id}/consumables', data={'name': 'Water filter'})
+        consumable = Consumable.query.filter_by(appliance_id=appliance.id).first()
+
+        resp = logged_in_client.post(f'/consumables/{consumable.id}/edit', data={
+            'name': 'Water filter (blue)',
+            'part_number': 'WF-123',
+            'purchase_url': 'https://example.com/wf-123',
+            'frequency_value': '6',
+            'frequency_unit': 'months',
+        })
+        assert resp.status_code == 302
+        db.session.refresh(consumable)
+        assert consumable.name == 'Water filter (blue)'
+        assert consumable.part_number == 'WF-123'
+        assert consumable.purchase_url == 'https://example.com/wf-123'
+        assert consumable.frequency_value == 6
+        assert consumable.frequency_unit.value == 'months'
+
+    def test_edit_404_for_other_household(self, logged_in_client, db):
+        other = Household(name='Other')
+        db.session.add(other)
+        db.session.commit()
+        other_appliance = Appliance(household_id=other.id, name='Fridge', category='refrigerator')
+        db.session.add(other_appliance)
+        db.session.commit()
+        other_consumable = Consumable(appliance_id=other_appliance.id, name='Filter')
+        db.session.add(other_consumable)
+        db.session.commit()
+
+        resp = logged_in_client.get(f'/consumables/{other_consumable.id}/edit')
+        assert resp.status_code == 404
 
 
 class TestServiceRecords:

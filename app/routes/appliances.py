@@ -3,22 +3,14 @@ from flask_login import current_user, login_required
 
 from app import appliance_lookup_service, db, document_service
 from app.category_templates_data import CATEGORY_LABELS
-from app.models import Appliance, ApplianceStatus, FrequencyUnit, Room, Vendor
+from app.models import Appliance, ApplianceStatus, Room, Vendor
 from app.routes import main_bp
-from app.routes.helpers import get_household_appliance_or_404, parse_date, slugify
+from app.routes.helpers import get_household_appliance_or_404, parse_date, parse_pro_service_interval, slugify
 from app.template_service import apply_category_template
 
 _LOOKUP_IMAGE_MEDIA_TYPES = {
     'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'webp': 'image/webp',
 }
-
-
-def _parse_pro_service_interval(form):
-    value = form.get('pro_service_interval_value', '').strip()
-    unit = form.get('pro_service_interval_unit', '').strip()
-    if not value or not unit:
-        return None, None
-    return int(value), FrequencyUnit(unit)
 
 
 def _parse_room_id(form, household_id):
@@ -61,10 +53,7 @@ def appliance_list():
     appliances = Appliance.query.filter_by(
         household_id=current_user.household_id, status=status
     ).order_by(Appliance.name).all()
-    return render_template(
-        'appliances/list.html', appliances=appliances, show_archived=show_archived,
-        category_labels=CATEGORY_LABELS,
-    )
+    return render_template('appliances/list.html', appliances=appliances, show_archived=show_archived)
 
 
 @main_bp.route('/appliances/new', methods=['GET', 'POST'])
@@ -82,7 +71,6 @@ def appliance_new():
             make=request.form.get('make', '').strip() or None,
             model_number=request.form.get('model_number', '').strip() or None,
             serial_number=request.form.get('serial_number', '').strip() or None,
-            location=request.form.get('location', '').strip() or None,
             room_id=_parse_room_id(request.form, current_user.household_id),
             manufacture_year=_parse_manufacture_year(request.form),
             install_date=parse_date(request.form.get('install_date')),
@@ -90,7 +78,7 @@ def appliance_new():
             notes=request.form.get('notes', '').strip() or None,
         )
         appliance.pro_service_interval_value, appliance.pro_service_interval_unit = (
-            _parse_pro_service_interval(request.form)
+            parse_pro_service_interval(request.form)
         )
         db.session.add(appliance)
         db.session.flush()  # assign appliance.id before seeding related rows
@@ -131,7 +119,7 @@ def appliance_detail(appliance_id):
     vendors = Vendor.query.filter_by(household_id=current_user.household_id).order_by(Vendor.name).all()
     return render_template(
         'appliances/detail.html', appliance=appliance, documents=documents, primary_photo=primary_photo,
-        vendors=vendors, category_labels=CATEGORY_LABELS,
+        vendors=vendors,
     )
 
 
@@ -162,14 +150,13 @@ def appliance_edit(appliance_id):
         appliance.make = request.form.get('make', '').strip() or None
         appliance.model_number = request.form.get('model_number', '').strip() or None
         appliance.serial_number = request.form.get('serial_number', '').strip() or None
-        appliance.location = request.form.get('location', '').strip() or None
         appliance.room_id = _parse_room_id(request.form, appliance.household_id)
         appliance.manufacture_year = _parse_manufacture_year(request.form)
         appliance.install_date = parse_date(request.form.get('install_date'))
         appliance.purchase_date = parse_date(request.form.get('purchase_date'))
         appliance.notes = request.form.get('notes', '').strip() or None
         appliance.pro_service_interval_value, appliance.pro_service_interval_unit = (
-            _parse_pro_service_interval(request.form)
+            parse_pro_service_interval(request.form)
         )
         db.session.commit()
         return redirect(url_for('main.appliance_detail', appliance_id=appliance.id))

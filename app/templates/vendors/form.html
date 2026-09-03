@@ -47,6 +47,18 @@
            value="{{ vendor.website if vendor else '' }}" placeholder="https://…">
   </div>
 
+  <div class="col-md-4">
+    <label class="form-label" for="rating">Rating</label>
+    <select class="form-select" id="rating" name="rating">
+      <option value="">Not rated</option>
+      {% for stars in range(5, 0, -1) %}
+        <option value="{{ stars }}" {{ 'selected' if vendor and vendor.rating == stars }}>
+          {{ '★' * stars }}{{ '☆' * (5 - stars) }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
   <div class="col-12">
     <label class="form-label" for="notes">Notes</label>
     <textarea class="form-control" id="notes" name="notes" rows="3"

@@ -25,6 +25,22 @@ class TestZoneCRUD:
         assert zone.name == 'Gutters & Downspouts'
         assert zone.notes == 'Cleared twice a year'
 
+    def test_edit_updates_pro_service_interval(self, logged_in_client, db, household):
+        zone = Zone(household_id=household.id, name='Roof')
+        db.session.add(zone)
+        db.session.commit()
+
+        resp = logged_in_client.post(f'/zones/{zone.id}/edit', data={
+            'name': 'Roof',
+            'pro_service_interval_value': '1',
+            'pro_service_interval_unit': 'years',
+        })
+        assert resp.status_code == 302
+        db.session.refresh(zone)
+        assert zone.pro_service_interval_value == 1
+        assert zone.pro_service_interval_unit.value == 'years'
+        assert zone.pro_service_next_due is not None
+
     def test_edit_404_for_other_household(self, logged_in_client, db):
         other = Household(name='Other')
         db.session.add(other)
