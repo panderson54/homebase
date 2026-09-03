@@ -16,6 +16,7 @@
           <th>Name</th>
           <th>Type</th>
           <th>Contact</th>
+          <th>Rating</th>
           <th>Visits</th>
         </tr>
       </thead>
@@ -35,6 +36,7 @@
             {{ vendor.contact_name or '' }}
             {% if vendor.phone %}<div class="small text-muted">{{ vendor.phone|phonefmt }}</div>{% endif %}
           </td>
+          <td class="text-warning">{% if vendor.rating %}{{ '★' * vendor.rating }}{% endif %}</td>
           <td>{{ vendor.services|length }}</td>
         </tr>
         {% endfor %}

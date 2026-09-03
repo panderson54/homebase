@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}Edit {{ consumable.name }} — Homebase{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('main.appliance_detail', appliance_id=consumable.appliance_id) }}" class="text-muted small d-inline-block mb-3">&larr; Back to appliance</a>
+<h1 class="h3 mb-4">Edit consumable</h1>
+
+<form method="post" class="row g-3">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="col-md-4">
+    <label class="form-label" for="name">Name</label>
+    <input type="text" class="form-control" id="name" name="name" required value="{{ consumable.name }}">
+  </div>
+  <div class="col-md-4">
+    <label class="form-label" for="part_number">Part #</label>
+    <input type="text" class="form-control" id="part_number" name="part_number" value="{{ consumable.part_number or '' }}">
+  </div>
+  <div class="col-md-4">
+    <label class="form-label" for="purchase_url">Purchase link</label>
+    <input type="url" class="form-control" id="purchase_url" name="purchase_url" value="{{ consumable.purchase_url or '' }}">
+  </div>
+
+  <div class="col-auto">
+    <label class="form-label" for="frequency_value">Every</label>
+    <input type="number" min="1" class="form-control" id="frequency_value" name="frequency_value" style="width: 6rem"
+           value="{{ consumable.frequency_value or '' }}">
+  </div>
+  <div class="col-auto">
+    <label class="form-label" for="frequency_unit">&nbsp;</label>
+    <select class="form-select" id="frequency_unit" name="frequency_unit">
+      <option value="">—</option>
+      {% for unit in ['days', 'weeks', 'months', 'years'] %}
+        <option value="{{ unit }}" {{ 'selected' if consumable.frequency_unit and consumable.frequency_unit.value == unit }}>{{ unit }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="col-12">
+    <button type="submit" class="btn btn-primary">Save changes</button>
+    <a href="{{ url_for('main.appliance_detail', appliance_id=consumable.appliance_id) }}" class="btn btn-outline-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}

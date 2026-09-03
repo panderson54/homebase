@@ -4,12 +4,15 @@ from flask_login import current_user, login_required
 from app import db, vendor_service
 from app.models import ServiceCategory, ServiceRecord, Vendor, Zone
 from app.routes import main_bp
-from app.routes.helpers import get_household_zone_or_404, parse_date, parse_decimal, slugify
+from app.routes.helpers import (
+    get_household_zone_or_404, parse_date, parse_decimal, parse_pro_service_interval, slugify,
+)
 
 
 def _apply_form(zone, form):
     zone.name = form.get('name', '').strip()
     zone.notes = form.get('notes', '').strip() or None
+    zone.pro_service_interval_value, zone.pro_service_interval_unit = parse_pro_service_interval(form)
 
 
 @main_bp.route('/zones/new', methods=['POST'])

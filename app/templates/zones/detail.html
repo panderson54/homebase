@@ -15,9 +15,82 @@
 </div>
 {% if zone.notes %}<p style="white-space: pre-wrap;">{{ zone.notes }}</p>{% endif %}
 
-<!-- Service history -->
+<!-- Homeowner maintenance -->
 <section class="mb-5">
-  <h2 class="h5">Service history</h2>
+  <h2 class="h5">Homeowner maintenance</h2>
+  {% if zone.maintenance_tasks %}
+    <ul class="list-group mb-3">
+      {% for task in zone.maintenance_tasks %}
+        <li class="list-group-item">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <strong>{{ task.title }}</strong>
+              <span class="text-muted small">every {{ task.frequency_value }} {{ task.frequency_unit.value }}</span>
+              {% if task.description %}<div class="small text-muted">{{ task.description }}</div>{% endif %}
+              <div class="small">
+                {% if task.next_due_at %}Next due {{ task.next_due_at|datefmt }}{% else %}Not yet completed{% endif %}
+              </div>
+            </div>
+            <div class="d-flex gap-2">
+              <form method="post" action="{{ url_for('main.maintenance_task_complete', task_id=task.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-success">Mark done</button>
+              </form>
+              <form method="post" action="{{ url_for('main.maintenance_task_delete', task_id=task.id) }}"
+                    data-confirm="Delete this task?">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+              </form>
+            </div>
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="text-muted">No maintenance tasks yet.</p>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('main.zone_maintenance_task_create', zone_id=zone.id) }}"
+        class="row g-2 align-items-end">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="col-md-4">
+      <label class="form-label">Task</label>
+      <input type="text" class="form-control form-control-sm" name="title" required placeholder="e.g. Clear gutters">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Description</label>
+      <input type="text" class="form-control form-control-sm" name="description">
+    </div>
+    <div class="col-auto">
+      <label class="form-label">Every</label>
+      <input type="number" min="1" class="form-control form-control-sm" name="frequency_value" required style="width: 5rem">
+    </div>
+    <div class="col-auto">
+      <label class="form-label">&nbsp;</label>
+      <select class="form-select form-select-sm" name="frequency_unit">
+        <option value="days">days</option>
+        <option value="weeks">weeks</option>
+        <option value="months" selected>months</option>
+        <option value="years">years</option>
+      </select>
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-sm btn-primary">Add task</button>
+    </div>
+  </form>
+</section>
+
+<!-- Professional service -->
+<section class="mb-5">
+  <h2 class="h5">Professional service</h2>
+  {% if zone.pro_service_interval_value %}
+    <p class="text-muted small">
+      Recommended every {{ zone.pro_service_interval_value }} {{ zone.pro_service_interval_unit.value }}.
+      {% if zone.pro_service_next_due %}Next due {{ zone.pro_service_next_due|datefmt }}.{% endif %}
+    </p>
+  {% else %}
+    <p class="text-muted small">No recommended interval set. Add one from the Edit page.</p>
+  {% endif %}
   {% if zone.service_records %}
     <ul class="list-group mb-3">
       {% for record in zone.service_records %}

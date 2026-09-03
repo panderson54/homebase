@@ -6,6 +6,7 @@ from flask_login import UserMixin
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app import db
+from app.category_templates_data import CATEGORY_LABELS
 from app.maintenance_calc import compute_next_due
 
 
@@ -107,7 +108,6 @@ class Appliance(db.Model):
     make = db.Column(db.String(120))
     model_number = db.Column(db.String(120))
     serial_number = db.Column(db.String(120))
-    location = db.Column(db.String(120))
     room_id = db.Column(db.Integer, db.ForeignKey('rooms.id'))
     manufacture_year = db.Column(db.Integer)
     install_date = db.Column(db.Date)
@@ -133,6 +133,12 @@ class Appliance(db.Model):
         'ServiceRecord', back_populates='appliance', cascade='all, delete-orphan',
         order_by='ServiceRecord.service_date.desc()',
     )
+
+    @property
+    def category_label(self):
+        """Human-readable category, falling back to a humanized slug for a
+        custom (non-seeded) category rather than showing the raw underscore_case."""
+        return CATEGORY_LABELS.get(self.category) or self.category.replace('_', ' ').title()
 
     @property
     def latest_service_date(self):
@@ -191,10 +197,15 @@ class DocumentLink(db.Model):
 
 
 class MaintenanceTask(db.Model):
+    """A recurring owner-performed task, owned by either an Appliance or a Zone
+    (never both/neither — see the check constraint) the same way ServiceRecord's
+    appliance_id/zone_id pair works, just without ServiceRecord's "neither" case
+    since a task with no owner has nowhere to be shown or completed from."""
     __tablename__ = 'maintenance_tasks'
 
     id = db.Column(db.Integer, primary_key=True)
-    appliance_id = db.Column(db.Integer, db.ForeignKey('appliances.id'), nullable=False)
+    appliance_id = db.Column(db.Integer, db.ForeignKey('appliances.id'))
+    zone_id = db.Column(db.Integer, db.ForeignKey('zones.id'))
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     frequency_value = db.Column(db.Integer, nullable=False)
@@ -204,9 +215,18 @@ class MaintenanceTask(db.Model):
     active = db.Column(db.Boolean, nullable=False, default=True)
 
     appliance = db.relationship('Appliance', back_populates='maintenance_tasks')
+    zone = db.relationship('Zone', back_populates='maintenance_tasks')
     logs = db.relationship(
         'MaintenanceLog', back_populates='task', cascade='all, delete-orphan',
         order_by='MaintenanceLog.completed_at.desc()',
+    )
+
+    __table_args__ = (
+        db.CheckConstraint(
+            '(appliance_id IS NOT NULL AND zone_id IS NULL) OR '
+            '(appliance_id IS NULL AND zone_id IS NOT NULL)',
+            name='ck_maintenance_task_appliance_xor_zone',
+        ),
     )
 
 
@@ -275,11 +295,16 @@ class Vendor(db.Model):
     email = db.Column(db.String(255))
     website = db.Column(db.String(500))
     notes = db.Column(db.Text)
+    rating = db.Column(db.Integer)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     household = db.relationship('Household', back_populates='vendors')
     services = db.relationship(
         'ServiceRecord', back_populates='vendor', order_by='ServiceRecord.service_date.desc()'
+    )
+
+    __table_args__ = (
+        db.CheckConstraint('rating IS NULL OR rating BETWEEN 1 AND 5', name='ck_vendor_rating_range'),
     )
 
 
@@ -311,9 +336,9 @@ class PaintColor(db.Model):
 
 class Room(db.Model):
     """A named space in the home (e.g. "Kitchen", "Bedroom 2"), optionally grouped
-    under a floor label. Appliances and paint colors can be tied to one for a
-    structured, browsable view of the house — independent of the free-text
-    location fields those models already carry."""
+    under a floor label. Appliances can be tied to one for a structured,
+    browsable view of the house; paint colors can too, independent of the
+    free-text location field that model already carries."""
     __tablename__ = 'rooms'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -337,12 +362,30 @@ class Zone(db.Model):
     household_id = db.Column(db.Integer, db.ForeignKey('households.id'), nullable=False)
     name = db.Column(db.String(120), nullable=False)
     notes = db.Column(db.Text)
+    pro_service_interval_value = db.Column(db.Integer)
+    pro_service_interval_unit = db.Column(db.Enum(FrequencyUnit, native_enum=False))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     household = db.relationship('Household', back_populates='zones')
     service_records = db.relationship(
         'ServiceRecord', back_populates='zone', order_by='ServiceRecord.service_date.desc()',
     )
+    maintenance_tasks = db.relationship(
+        'MaintenanceTask', back_populates='zone', cascade='all, delete-orphan',
+        order_by='MaintenanceTask.title',
+    )
+
+    @property
+    def latest_service_date(self):
+        return self.service_records[0].service_date if self.service_records else None
+
+    @property
+    def pro_service_next_due(self):
+        """Next pro-service due date, computed from the latest visit (or creation date if none yet)."""
+        if not self.pro_service_interval_value or not self.pro_service_interval_unit:
+            return None
+        baseline = self.latest_service_date or self.created_at.date()
+        return compute_next_due(baseline, self.pro_service_interval_value, self.pro_service_interval_unit.value)
 
 
 class CategoryTemplate(db.Model):

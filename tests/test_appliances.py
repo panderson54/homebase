@@ -35,6 +35,13 @@ class TestApplianceCreate:
         assert resp.status_code == 302
         appliance = Appliance.query.filter_by(household_id=user.household_id).first()
         assert appliance.category == 'garage_door_opener'
+        assert appliance.category_label == 'Garage Door Opener'
+
+    def test_category_label_for_seeded_category(self, household, db):
+        appliance = Appliance(household_id=household.id, name='Furnace', category='furnace')
+        db.session.add(appliance)
+        db.session.commit()
+        assert appliance.category_label == 'Furnace'
 
     def test_create_applies_template(self, logged_in_client, user, db, seeded_templates):
         resp = logged_in_client.post('/appliances/new', data={
@@ -148,12 +155,12 @@ class TestApplianceEdit:
         resp = logged_in_client.post(f'/appliances/{appliance.id}/edit', data={
             'name': 'Basement Furnace',
             'category': 'furnace',
-            'location': 'Basement',
+            'serial_number': 'ABC123',
         })
         assert resp.status_code == 302
         db.session.refresh(appliance)
         assert appliance.name == 'Basement Furnace'
-        assert appliance.location == 'Basement'
+        assert appliance.serial_number == 'ABC123'
 
 
 class TestApplianceLookup:

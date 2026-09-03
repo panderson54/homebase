@@ -10,7 +10,6 @@ feature. Only external links are listed, since the URL itself is information.
 from datetime import datetime
 
 from app import document_service
-from app.category_templates_data import CATEGORY_LABELS
 from app.models import ApplianceStatus
 from app.vendor_types_data import VENDOR_TYPE_LABELS
 
@@ -87,6 +86,7 @@ def _vendor_section(vendor):
         ('Phone', vendor.phone),
         ('Email', vendor.email),
         ('Website', vendor.website),
+        ('Rating', f'{vendor.rating}/5' if vendor.rating else None),
     ):
         if value:
             lines.append(f'- {field_label}: {value}')
@@ -109,6 +109,21 @@ def _zone_section(zone):
     lines = [f'### {zone.name}', '']
     if zone.notes:
         lines.append(f'- Notes: {zone.notes}')
+    if zone.pro_service_interval_value:
+        next_due = zone.pro_service_next_due
+        next_due_str = f', next due {next_due.isoformat()}' if next_due else ''
+        lines.append(
+            f'- Professional service: every {zone.pro_service_interval_value} '
+            f'{zone.pro_service_interval_unit.value}{next_due_str}'
+        )
+    lines.append('')
+
+    lines.append('#### Homeowner maintenance')
+    if zone.maintenance_tasks:
+        for task in zone.maintenance_tasks:
+            lines.extend(_maintenance_task_lines(task))
+    else:
+        lines.append('  (none tracked)')
     lines.append('')
 
     lines.append('#### Service history')
@@ -158,13 +173,11 @@ def _room_lines(room):
 
 
 def _appliance_section(appliance):
-    label = CATEGORY_LABELS.get(appliance.category, appliance.category)
-    lines = [f'### {appliance.name} ({label})', '']
+    lines = [f'### {appliance.name} ({appliance.category_label})', '']
     for field_label, value in (
         ('Make', appliance.make),
         ('Model number', appliance.model_number),
         ('Serial number', appliance.serial_number),
-        ('Location', appliance.location),
         ('Room', appliance.room.name if appliance.room else None),
         ('Installed', appliance.install_date.isoformat() if appliance.install_date else None),
         ('Purchased', appliance.purchase_date.isoformat() if appliance.purchase_date else None),

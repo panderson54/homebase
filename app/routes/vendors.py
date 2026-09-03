@@ -17,6 +17,18 @@ def _parse_vendor_type(form):
     return vendor_type or 'other'
 
 
+def _parse_rating(form):
+    """Parse the 1-5 star rating select; blank means 'not rated', not zero."""
+    value = form.get('rating', '').strip()
+    if not value:
+        return None
+    try:
+        rating = int(value)
+    except ValueError:
+        return None
+    return rating if 1 <= rating <= 5 else None
+
+
 def _maybe_set_default_logo(vendor):
     """Auto-fill the vendor's profile picture from its website's favicon,
     unless one is already set — a manual upload (or a previously auto-set
@@ -51,6 +63,7 @@ def vendor_new():
             email=request.form.get('email', '').strip() or None,
             website=request.form.get('website', '').strip() or None,
             notes=request.form.get('notes', '').strip() or None,
+            rating=_parse_rating(request.form),
         )
         db.session.add(vendor)
         db.session.commit()
@@ -101,6 +114,7 @@ def vendor_edit(vendor_id):
         vendor.email = request.form.get('email', '').strip() or None
         vendor.website = request.form.get('website', '').strip() or None
         vendor.notes = request.form.get('notes', '').strip() or None
+        vendor.rating = _parse_rating(request.form)
         db.session.commit()
         _maybe_set_default_logo(vendor)
         return redirect(url_for('main.vendor_detail', vendor_id=vendor.id))

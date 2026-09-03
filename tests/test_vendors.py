@@ -71,6 +71,43 @@ class TestVendorCRUD:
         resp = logged_in_client.get('/vendors')
         assert vendor.name.encode() in resp.data
 
+    def test_create_vendor_with_rating(self, logged_in_client, household):
+        logged_in_client.post('/vendors/new', data={
+            'name': 'ACME HVAC', 'vendor_type': 'hvac', 'rating': '4',
+        })
+        vendor = Vendor.query.filter_by(household_id=household.id).first()
+        assert vendor.rating == 4
+
+    def test_create_vendor_without_rating_leaves_it_unrated(self, logged_in_client, household):
+        logged_in_client.post('/vendors/new', data={'name': 'Joe the Handyman', 'vendor_type': 'other'})
+        vendor = Vendor.query.filter_by(household_id=household.id).first()
+        assert vendor.rating is None
+
+    def test_create_vendor_with_out_of_range_rating_is_ignored(self, logged_in_client, household):
+        logged_in_client.post('/vendors/new', data={
+            'name': 'ACME HVAC', 'vendor_type': 'hvac', 'rating': '7',
+        })
+        vendor = Vendor.query.filter_by(household_id=household.id).first()
+        assert vendor.rating is None
+
+    def test_edit_updates_rating(self, logged_in_client, db, vendor):
+        resp = logged_in_client.post(f'/vendors/{vendor.id}/edit', data={
+            'name': vendor.name, 'vendor_type': vendor.vendor_type, 'rating': '5',
+        })
+        assert resp.status_code == 302
+        db.session.refresh(vendor)
+        assert vendor.rating == 5
+
+    def test_edit_clears_rating(self, logged_in_client, db, vendor):
+        vendor.rating = 3
+        db.session.commit()
+
+        logged_in_client.post(f'/vendors/{vendor.id}/edit', data={
+            'name': vendor.name, 'vendor_type': vendor.vendor_type,
+        })
+        db.session.refresh(vendor)
+        assert vendor.rating is None
+
 
 class TestVendorLogo:
     def test_create_with_website_sets_default_logo(self, logged_in_client, db, household):
