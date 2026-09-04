@@ -2,6 +2,7 @@
 {% block title %}{{ zone.name }} — Homebase{% endblock %}
 
 {% block content %}
+<a href="{{ url_for('main.home', tab='zones') }}" class="text-muted small d-inline-block mb-3">&larr; Back to Zones</a>
 <div class="d-flex justify-content-between align-items-start mb-3">
   <h1 class="h3 mb-0">{{ zone.name }}</h1>
   <div class="d-flex gap-2">
@@ -101,6 +102,16 @@
               <a href="{{ url_for('main.vendor_detail', vendor_id=record.vendor.id) }}">{{ record.vendor.name }}</a>
             {% endif %}
             <span class="badge text-bg-light border text-capitalize">{{ record.category.value }}</span>
+            {% if record_document_counts.get(record.id) %}
+              <a href="{{ url_for('main.service_record_edit', record_id=record.id) }}"
+                 class="badge text-bg-light border text-decoration-none"
+                 title="{{ record_document_counts[record.id] }} document{{ 's' if record_document_counts[record.id] != 1 }}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                  <path d="M4.5 3a2.5 2.5 0 0 1 5 0v9a1.5 1.5 0 0 1-3 0V5a.5.5 0 0 1 1 0v7a.5.5 0 0 0 1 0V3a1.5 1.5 0 1 0-3 0v9a2.5 2.5 0 0 0 5 0V5a.5.5 0 0 1 1 0v7a3.5 3.5 0 1 1-7 0z"/>
+                </svg>
+                {{ record_document_counts[record.id] }}
+              </a>
+            {% endif %}
             {% if record.cost %} <span class="text-muted small font-tabular">{{ record.cost|currency }}</span>{% endif %}
             {% if record.notes %}<div class="small text-muted">{{ record.notes }}</div>{% endif %}
           </div>

@@ -6,13 +6,39 @@ Sourced from the user's 7 reference appliances (see docs/appliance-tracker-plan.
 """
 
 CATEGORY_LABELS = {
-    'furnace': 'Furnace',
-    'water_heater': 'Water Heater',
+    # Kitchen
     'dishwasher': 'Dishwasher',
     'refrigerator': 'Refrigerator',
-    'dehumidifier': 'Dehumidifier',
+    'freezer': 'Freezer',
+    'range': 'Range / Stove',
+    'wall_oven': 'Wall Oven',
+    'cooktop': 'Cooktop',
+    'microwave': 'Microwave',
+    'garbage_disposal': 'Garbage Disposal',
+    'range_hood': 'Range Hood',
+    'wine_cooler': 'Wine / Beverage Cooler',
+    # Laundry
+    'washer': 'Washer',
+    'dryer': 'Dryer',
+    # HVAC / Climate
+    'furnace': 'Furnace',
+    'boiler': 'Boiler',
+    'central_ac': 'Central Air Conditioner',
+    'window_ac': 'Window / Portable AC',
+    'heat_pump': 'Heat Pump',
     'mini_split_outdoor': 'AC / Mini-Split (Outdoor Unit)',
     'mini_split_indoor': 'AC / Mini-Split (Indoor Head)',
+    'dehumidifier': 'Dehumidifier',
+    'humidifier': 'Humidifier',
+    # Water
+    'water_heater': 'Water Heater',
+    'tankless_water_heater': 'Tankless Water Heater',
+    'water_softener': 'Water Softener',
+    'sump_pump': 'Sump Pump',
+    'well_pump': 'Well Pump',
+    'water_filter': 'Whole-House Water Filter',
+    # Other
+    'generator': 'Standby Generator',
 }
 
 CATEGORY_TEMPLATES = {

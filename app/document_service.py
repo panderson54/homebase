@@ -156,6 +156,24 @@ def get_primary_photos_for_many(entity_type, entity_ids):
     return {entity_id: document for entity_id, document in rows}
 
 
+def get_document_counts_for(entity_type, entity_ids):
+    """Bulk document count per entity, for list pages that show a "has documents"
+    indicator without a query per row. Returns {entity_id: count}; ids with no
+    documents are simply absent rather than mapped to 0."""
+    if not entity_ids:
+        return {}
+    rows = (
+        db.session.query(DocumentLink.entity_id, db.func.count(DocumentLink.id))
+        .filter(
+            DocumentLink.entity_type == DocumentEntityType(entity_type),
+            DocumentLink.entity_id.in_(entity_ids),
+        )
+        .group_by(DocumentLink.entity_id)
+        .all()
+    )
+    return {entity_id: count for entity_id, count in rows}
+
+
 def get_documents_for(entity_type, entity_id):
     """All documents linked to one entity, newest first."""
     return (

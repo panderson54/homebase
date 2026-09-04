@@ -1,7 +1,7 @@
 from flask import abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from app import db, vendor_service
+from app import db, document_service, vendor_service
 from app.models import Appliance, ServiceCategory, ServiceRecord, Vendor, Zone
 from app.routes import main_bp
 from app.routes.helpers import (
@@ -79,9 +79,36 @@ def service_record_edit(record_id):
     vendors = Vendor.query.filter_by(household_id=record.household_id).order_by(Vendor.name).all()
     appliances = Appliance.query.filter_by(household_id=record.household_id).order_by(Appliance.name).all()
     zones = Zone.query.filter_by(household_id=record.household_id).order_by(Zone.name).all()
+    documents = document_service.get_documents_for('service_record', record.id)
     return render_template(
         'service_records/edit.html', record=record, vendors=vendors, appliances=appliances, zones=zones,
+        documents=documents,
     )
+
+
+@main_bp.route('/service-records/<int:record_id>/documents', methods=['POST'])
+@login_required
+def service_record_document_upload(record_id):
+    record = _get_service_record_or_404(record_id)
+    document = document_service.save_and_link(
+        household_id=record.household_id,
+        entity_type='service_record',
+        entity_id=record.id,
+        doc_type=request.form.get('doc_type', 'invoice'),
+        file_storage=request.files.get('file'),
+        external_url=request.form.get('external_url', '').strip(),
+    )
+    if document is None:
+        flash('Attach a file (PDF, PNG, JPG, WEBP) or provide a link.', 'danger')
+    return redirect(url_for('main.service_record_edit', record_id=record.id))
+
+
+@main_bp.route('/service-records/<int:record_id>/documents/<int:document_id>/delete', methods=['POST'])
+@login_required
+def service_record_document_delete(record_id, document_id):
+    record = _get_service_record_or_404(record_id)
+    document_service.unlink_and_maybe_delete(document_id, 'service_record', record.id)
+    return redirect(url_for('main.service_record_edit', record_id=record.id))
 
 
 @main_bp.route('/service-records/<int:record_id>/delete', methods=['POST'])
@@ -91,6 +118,10 @@ def service_record_delete(record_id):
     appliance_id = record.appliance_id
     zone_id = record.zone_id
     vendor_id = record.vendor_id
+    # Documents are a polymorphic link, not a DB-enforced cascade — clean them
+    # up explicitly before the record itself goes away.
+    for document in document_service.get_documents_for('service_record', record.id):
+        document_service.unlink_and_maybe_delete(document.id, 'service_record', record.id)
     db.session.delete(record)
     db.session.commit()
     if appliance_id:

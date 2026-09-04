@@ -1,6 +1,9 @@
 from datetime import date
 
-from app.models import Appliance, Consumable, Household, MaintenanceLog, MaintenanceTask, ServiceRecord, Zone
+from app import document_service
+from app.models import (
+    Appliance, Consumable, Document, Household, MaintenanceLog, MaintenanceTask, ServiceRecord, Zone,
+)
 
 
 class TestMaintenanceTasks:
@@ -266,6 +269,102 @@ class TestServiceRecords:
         resp = logged_in_client.post(f'/service-records/{record_id}/delete')
         assert resp.status_code == 302
         assert db.session.get(ServiceRecord, record_id) is None
+
+    def test_upload_link_document(self, logged_in_client, db, household, vendor):
+        record = ServiceRecord(household_id=household.id, vendor_id=vendor.id, service_date=date(2026, 1, 1))
+        db.session.add(record)
+        db.session.commit()
+
+        resp = logged_in_client.post(f'/service-records/{record.id}/documents', data={
+            'doc_type': 'invoice',
+            'external_url': 'https://example.com/invoice.pdf',
+        })
+        assert resp.status_code == 302
+        docs = document_service.get_documents_for('service_record', record.id)
+        assert len(docs) == 1
+        assert docs[0].doc_type.value == 'invoice'
+
+    def test_upload_requires_file_or_link(self, logged_in_client, db, household, vendor):
+        record = ServiceRecord(household_id=household.id, vendor_id=vendor.id, service_date=date(2026, 1, 1))
+        db.session.add(record)
+        db.session.commit()
+
+        resp = logged_in_client.post(f'/service-records/{record.id}/documents', data={'doc_type': 'invoice'})
+        assert resp.status_code == 302
+        assert document_service.get_documents_for('service_record', record.id) == []
+
+    def test_delete_document(self, logged_in_client, db, household, vendor):
+        record = ServiceRecord(household_id=household.id, vendor_id=vendor.id, service_date=date(2026, 1, 1))
+        db.session.add(record)
+        db.session.commit()
+        document = document_service.save_and_link(
+            household_id=household.id, entity_type='service_record', entity_id=record.id,
+            doc_type='invoice', external_url='https://example.com/invoice.pdf',
+        )
+
+        resp = logged_in_client.post(f'/service-records/{record.id}/documents/{document.id}/delete')
+        assert resp.status_code == 302
+        assert document_service.get_documents_for('service_record', record.id) == []
+
+    def test_deleting_record_cleans_up_documents(self, logged_in_client, db, household, vendor):
+        record = ServiceRecord(household_id=household.id, vendor_id=vendor.id, service_date=date(2026, 1, 1))
+        db.session.add(record)
+        db.session.commit()
+        document = document_service.save_and_link(
+            household_id=household.id, entity_type='service_record', entity_id=record.id,
+            doc_type='invoice', external_url='https://example.com/invoice.pdf',
+        )
+        document_id = document.id
+
+        logged_in_client.post(f'/service-records/{record.id}/delete')
+        assert db.session.get(Document, document_id) is None
+
+    def test_document_upload_404_for_other_household(self, logged_in_client, db):
+        other = Household(name='Other')
+        db.session.add(other)
+        db.session.commit()
+        other_record = ServiceRecord(household_id=other.id, service_date=date(2026, 1, 1))
+        db.session.add(other_record)
+        db.session.commit()
+
+        resp = logged_in_client.post(f'/service-records/{other_record.id}/documents', data={
+            'doc_type': 'invoice', 'external_url': 'https://example.com/invoice.pdf',
+        })
+        assert resp.status_code == 404
+
+    def test_document_indicator_shows_on_appliance_detail(self, logged_in_client, db, household, vendor):
+        appliance = Appliance(household_id=household.id, name='Furnace', category='furnace')
+        db.session.add(appliance)
+        db.session.commit()
+        record = ServiceRecord(
+            household_id=household.id, vendor_id=vendor.id, appliance_id=appliance.id, service_date=date(2026, 1, 1)
+        )
+        db.session.add(record)
+        db.session.commit()
+        document_service.save_and_link(
+            household_id=household.id, entity_type='service_record', entity_id=record.id,
+            doc_type='invoice', external_url='https://example.com/invoice.pdf',
+        )
+
+        resp = logged_in_client.get(f'/appliances/{appliance.id}')
+        body = resp.data.decode()
+        # The Edit button always links to the edit page (1 occurrence); the
+        # document-count badge links there too, so 2 occurrences means it's shown.
+        assert body.count(f'/service-records/{record.id}/edit') == 2
+
+    def test_no_document_indicator_when_no_documents(self, logged_in_client, db, household, vendor):
+        appliance = Appliance(household_id=household.id, name='Furnace', category='furnace')
+        db.session.add(appliance)
+        db.session.commit()
+        record = ServiceRecord(
+            household_id=household.id, vendor_id=vendor.id, appliance_id=appliance.id, service_date=date(2026, 1, 1)
+        )
+        db.session.add(record)
+        db.session.commit()
+
+        resp = logged_in_client.get(f'/appliances/{appliance.id}')
+        body = resp.data.decode()
+        assert body.count(f'/service-records/{record.id}/edit') == 1
 
     def test_edit_attaches_appliance_added_after_the_fact(self, logged_in_client, db, household, vendor):
         record = ServiceRecord(household_id=household.id, vendor_id=vendor.id, service_date=date(2026, 1, 1))

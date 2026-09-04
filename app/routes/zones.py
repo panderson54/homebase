@@ -1,7 +1,7 @@
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from app import db, vendor_service
+from app import db, document_service, vendor_service
 from app.models import ServiceCategory, ServiceRecord, Vendor, Zone
 from app.routes import main_bp
 from app.routes.helpers import (
@@ -33,7 +33,12 @@ def zone_new():
 def zone_detail(zone_id):
     zone = get_household_zone_or_404(zone_id)
     vendors = Vendor.query.filter_by(household_id=zone.household_id).order_by(Vendor.name).all()
-    return render_template('zones/detail.html', zone=zone, vendors=vendors)
+    record_document_counts = document_service.get_document_counts_for(
+        'service_record', [r.id for r in zone.service_records]
+    )
+    return render_template(
+        'zones/detail.html', zone=zone, vendors=vendors, record_document_counts=record_document_counts,
+    )
 
 
 @main_bp.route('/zones/<int:zone_id>/edit', methods=['GET', 'POST'])

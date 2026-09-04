@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 
-from app.models import Appliance, Consumable, MaintenanceTask
+from app.models import Appliance, Consumable, MaintenanceTask, Zone
 
 
 class TestDashboard:
@@ -36,6 +36,29 @@ class TestDashboard:
         assert 'Future task' in body
         # pro service is overdue since install_date + 1yr < today's install offset of 400 days
         assert 'Professional service' in body
+
+    def test_zone_maintenance_and_pro_service_appear(self, logged_in_client, db, household):
+        zone = Zone(
+            household_id=household.id, name='Roof',
+            pro_service_interval_value=1, pro_service_interval_unit='years',
+        )
+        db.session.add(zone)
+        db.session.commit()
+
+        overdue_task = MaintenanceTask(
+            zone_id=zone.id, title='Clear gutters', frequency_value=6, frequency_unit='months',
+            next_due_at=date.today() - timedelta(days=5),
+        )
+        db.session.add(overdue_task)
+        db.session.commit()
+
+        resp = logged_in_client.get('/dashboard')
+        assert resp.status_code == 200
+        body = resp.data.decode()
+        assert 'Roof' in body
+        assert 'Clear gutters' in body
+        assert 'Professional service' in body
+        assert f'/zones/{zone.id}"' in body
 
     def test_empty_dashboard_renders(self, logged_in_client):
         resp = logged_in_client.get('/dashboard')

@@ -8,6 +8,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from app import db
 from app.category_templates_data import CATEGORY_LABELS
 from app.maintenance_calc import compute_next_due
+from app.vendor_types_data import VENDOR_TYPE_LABELS
 
 
 class ApplianceStatus(str, enum.Enum):
@@ -41,6 +42,7 @@ class DocumentEntityType(str, enum.Enum):
     home = 'home'
     vendor = 'vendor'
     paint_color = 'paint_color'
+    service_record = 'service_record'
 
 
 class TemplateKind(str, enum.Enum):
@@ -306,6 +308,12 @@ class Vendor(db.Model):
     __table_args__ = (
         db.CheckConstraint('rating IS NULL OR rating BETWEEN 1 AND 5', name='ck_vendor_rating_range'),
     )
+
+    @property
+    def vendor_type_label(self):
+        """Human-readable vendor type, falling back to a humanized slug for a
+        custom (non-seeded) type rather than showing the raw underscore_case."""
+        return VENDOR_TYPE_LABELS.get(self.vendor_type) or self.vendor_type.replace('_', ' ').title()
 
 
 class PaintColor(db.Model):

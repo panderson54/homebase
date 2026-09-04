@@ -92,6 +92,31 @@ class TestPrimaryPhotosForMany:
         assert document_service.get_primary_photos_for_many('vendor', []) == {}
 
 
+class TestDocumentCountsForMany:
+    def test_returns_dict_keyed_by_entity_id(self, app, db, household):
+        with app.test_request_context():
+            document_service.save_and_link(
+                household_id=household.id, entity_type='service_record', entity_id=1,
+                doc_type='invoice', external_url='https://example.com/a.pdf',
+            )
+            document_service.save_and_link(
+                household_id=household.id, entity_type='service_record', entity_id=1,
+                doc_type='receipt', external_url='https://example.com/b.pdf',
+            )
+            document_service.save_and_link(
+                household_id=household.id, entity_type='service_record', entity_id=2,
+                doc_type='invoice', external_url='https://example.com/c.pdf',
+            )
+
+        counts = document_service.get_document_counts_for('service_record', [1, 2, 3])
+        assert counts[1] == 2
+        assert counts[2] == 1
+        assert 3 not in counts
+
+    def test_empty_ids_returns_empty_dict(self, db):
+        assert document_service.get_document_counts_for('service_record', []) == {}
+
+
 class TestSaveAndLink:
     def test_creates_document_and_link_from_url(self, app, db, household):
         with app.test_request_context():
