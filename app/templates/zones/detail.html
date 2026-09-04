@@ -2,6 +2,7 @@
 {% block title %}{{ zone.name }} — Homebase{% endblock %}
 
 {% block content %}
+<a href="{{ url_for('main.home', tab='zones') }}" class="text-muted small d-inline-block mb-3">&larr; Back to Zones</a>
 <div class="d-flex justify-content-between align-items-start mb-3">
   <h1 class="h3 mb-0">{{ zone.name }}</h1>
   <div class="d-flex gap-2">

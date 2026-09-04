@@ -31,7 +31,7 @@
             {% endif %}
           </td>
           <td><a href="{{ url_for('main.vendor_detail', vendor_id=vendor.id) }}">{{ vendor.name }}</a></td>
-          <td>{{ vendor_type_labels.get(vendor.vendor_type, vendor.vendor_type) }}</td>
+          <td>{{ vendor.vendor_type_label }}</td>
           <td>
             {{ vendor.contact_name or '' }}
             {% if vendor.phone %}<div class="small text-muted">{{ vendor.phone|phonefmt }}</div>{% endif %}

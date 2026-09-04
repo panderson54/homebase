@@ -45,9 +45,7 @@ def _maybe_set_default_logo(vendor):
 def vendor_list():
     vendors = Vendor.query.filter_by(household_id=current_user.household_id).order_by(Vendor.name).all()
     vendor_logos = document_service.get_primary_photos_for_many('vendor', [v.id for v in vendors])
-    return render_template(
-        'vendors/list.html', vendors=vendors, vendor_type_labels=VENDOR_TYPE_LABELS, vendor_logos=vendor_logos,
-    )
+    return render_template('vendors/list.html', vendors=vendors, vendor_logos=vendor_logos)
 
 
 @main_bp.route('/vendors/new', methods=['GET', 'POST'])
@@ -63,7 +61,6 @@ def vendor_new():
             email=request.form.get('email', '').strip() or None,
             website=request.form.get('website', '').strip() or None,
             notes=request.form.get('notes', '').strip() or None,
-            rating=_parse_rating(request.form),
         )
         db.session.add(vendor)
         db.session.commit()
@@ -85,7 +82,7 @@ def vendor_detail(vendor_id):
     zones = Zone.query.filter_by(household_id=current_user.household_id).order_by(Zone.name).all()
     return render_template(
         'vendors/detail.html', vendor=vendor, documents=documents, primary_photo=primary_photo,
-        appliances=appliances, zones=zones, vendor_type_labels=VENDOR_TYPE_LABELS,
+        appliances=appliances, zones=zones,
     )
 
 
@@ -98,6 +95,18 @@ def vendor_photo_upload(vendor_id):
     )
     if document is None:
         flash('Choose a PNG, JPG, or WEBP image.', 'danger')
+    return redirect(url_for('main.vendor_detail', vendor_id=vendor.id))
+
+
+@main_bp.route('/vendors/<int:vendor_id>/rating', methods=['POST'])
+@login_required
+def vendor_rating_update(vendor_id):
+    vendor = get_household_vendor_or_404(vendor_id)
+    clicked = _parse_rating(request.form)
+    # Clicking the star for the already-set rating clears it, so a click always
+    # toggles rather than requiring a separate "clear" control.
+    vendor.rating = None if clicked == vendor.rating else clicked
+    db.session.commit()
     return redirect(url_for('main.vendor_detail', vendor_id=vendor.id))
 
 
@@ -114,7 +123,6 @@ def vendor_edit(vendor_id):
         vendor.email = request.form.get('email', '').strip() or None
         vendor.website = request.form.get('website', '').strip() or None
         vendor.notes = request.form.get('notes', '').strip() or None
-        vendor.rating = _parse_rating(request.form)
         db.session.commit()
         _maybe_set_default_logo(vendor)
         return redirect(url_for('main.vendor_detail', vendor_id=vendor.id))

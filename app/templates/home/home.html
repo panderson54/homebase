@@ -224,7 +224,6 @@
           </span>
         </div>
         <div class="d-flex gap-2">
-          <a href="{{ url_for('main.zone_edit', zone_id=zone.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
           <form method="post" action="{{ url_for('main.zone_delete', zone_id=zone.id) }}"
                 data-confirm="Remove {{ zone.name }}? Its service history will be removed too.">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

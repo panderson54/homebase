@@ -40,6 +40,13 @@ class TestVendorCRUD:
         })
         vendor = Vendor.query.filter_by(household_id=household.id).first()
         assert vendor.vendor_type == 'general_handyman'
+        assert vendor.vendor_type_label == 'General Handyman'
+
+    def test_vendor_type_label_for_seeded_type(self, household, db):
+        vendor = Vendor(household_id=household.id, name='ACME HVAC', vendor_type='hvac')
+        db.session.add(vendor)
+        db.session.commit()
+        assert vendor.vendor_type_label == 'HVAC'
 
     def test_detail_404_for_other_household(self, logged_in_client, db, household):
         other_household = Household(name='Other Home')
@@ -71,34 +78,12 @@ class TestVendorCRUD:
         resp = logged_in_client.get('/vendors')
         assert vendor.name.encode() in resp.data
 
-    def test_create_vendor_with_rating(self, logged_in_client, household):
-        logged_in_client.post('/vendors/new', data={
-            'name': 'ACME HVAC', 'vendor_type': 'hvac', 'rating': '4',
-        })
-        vendor = Vendor.query.filter_by(household_id=household.id).first()
-        assert vendor.rating == 4
-
-    def test_create_vendor_without_rating_leaves_it_unrated(self, logged_in_client, household):
+    def test_create_vendor_leaves_it_unrated(self, logged_in_client, household):
         logged_in_client.post('/vendors/new', data={'name': 'Joe the Handyman', 'vendor_type': 'other'})
         vendor = Vendor.query.filter_by(household_id=household.id).first()
         assert vendor.rating is None
 
-    def test_create_vendor_with_out_of_range_rating_is_ignored(self, logged_in_client, household):
-        logged_in_client.post('/vendors/new', data={
-            'name': 'ACME HVAC', 'vendor_type': 'hvac', 'rating': '7',
-        })
-        vendor = Vendor.query.filter_by(household_id=household.id).first()
-        assert vendor.rating is None
-
-    def test_edit_updates_rating(self, logged_in_client, db, vendor):
-        resp = logged_in_client.post(f'/vendors/{vendor.id}/edit', data={
-            'name': vendor.name, 'vendor_type': vendor.vendor_type, 'rating': '5',
-        })
-        assert resp.status_code == 302
-        db.session.refresh(vendor)
-        assert vendor.rating == 5
-
-    def test_edit_clears_rating(self, logged_in_client, db, vendor):
+    def test_edit_does_not_touch_rating(self, logged_in_client, db, vendor):
         vendor.rating = 3
         db.session.commit()
 
@@ -106,7 +91,48 @@ class TestVendorCRUD:
             'name': vendor.name, 'vendor_type': vendor.vendor_type,
         })
         db.session.refresh(vendor)
+        assert vendor.rating == 3
+
+
+class TestVendorRating:
+    def test_click_sets_rating(self, logged_in_client, db, vendor):
+        resp = logged_in_client.post(f'/vendors/{vendor.id}/rating', data={'rating': '4'})
+        assert resp.status_code == 302
+        db.session.refresh(vendor)
+        assert vendor.rating == 4
+
+    def test_click_same_star_clears_rating(self, logged_in_client, db, vendor):
+        vendor.rating = 4
+        db.session.commit()
+
+        logged_in_client.post(f'/vendors/{vendor.id}/rating', data={'rating': '4'})
+        db.session.refresh(vendor)
         assert vendor.rating is None
+
+    def test_click_different_star_replaces_rating(self, logged_in_client, db, vendor):
+        vendor.rating = 4
+        db.session.commit()
+
+        logged_in_client.post(f'/vendors/{vendor.id}/rating', data={'rating': '2'})
+        db.session.refresh(vendor)
+        assert vendor.rating == 2
+
+    def test_out_of_range_rating_is_ignored(self, logged_in_client, db, vendor):
+        resp = logged_in_client.post(f'/vendors/{vendor.id}/rating', data={'rating': '7'})
+        assert resp.status_code == 302
+        db.session.refresh(vendor)
+        assert vendor.rating is None
+
+    def test_rating_update_404_for_other_household(self, logged_in_client, db):
+        other = Household(name='Other')
+        db.session.add(other)
+        db.session.commit()
+        other_vendor = Vendor(household_id=other.id, name='Other Vendor', vendor_type='other')
+        db.session.add(other_vendor)
+        db.session.commit()
+
+        resp = logged_in_client.post(f'/vendors/{other_vendor.id}/rating', data={'rating': '3'})
+        assert resp.status_code == 404
 
 
 class TestVendorLogo:

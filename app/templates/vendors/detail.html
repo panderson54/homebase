@@ -12,12 +12,16 @@
     {% endif %}
     <div>
       <h1 class="h3 mb-0">{{ vendor.name }}</h1>
-      <div class="text-muted">{{ vendor_type_labels.get(vendor.vendor_type, vendor.vendor_type) }}</div>
-      {% if vendor.rating %}
-        <div class="text-warning" title="{{ vendor.rating }}/5">
-          {{ '★' * vendor.rating }}{{ '☆' * (5 - vendor.rating) }}
-        </div>
-      {% endif %}
+      <div class="text-muted">{{ vendor.vendor_type_label }}</div>
+      <form method="post" action="{{ url_for('main.vendor_rating_update', vendor_id=vendor.id) }}"
+            class="star-picker" title="{{ (vendor.rating ~ '/5') if vendor.rating else 'Not rated — click to rate' }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% for n in range(5, 0, -1) %}
+          <button type="submit" name="rating" value="{{ n }}"
+                  class="star-picker-star{{ ' is-filled' if vendor.rating and n <= vendor.rating }}"
+                  aria-label="Rate {{ n }} star{{ 's' if n != 1 }}">★</button>
+        {% endfor %}
+      </form>
       <form method="post" action="{{ url_for('main.vendor_photo_upload', vendor_id=vendor.id) }}"
             enctype="multipart/form-data" class="mt-2">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
