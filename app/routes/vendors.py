@@ -80,9 +80,12 @@ def vendor_detail(vendor_id):
         household_id=current_user.household_id, status=ApplianceStatus.active
     ).order_by(Appliance.name).all()
     zones = Zone.query.filter_by(household_id=current_user.household_id).order_by(Zone.name).all()
+    record_document_counts = document_service.get_document_counts_for(
+        'service_record', [r.id for r in vendor.services]
+    )
     return render_template(
         'vendors/detail.html', vendor=vendor, documents=documents, primary_photo=primary_photo,
-        appliances=appliances, zones=zones,
+        appliances=appliances, zones=zones, record_document_counts=record_document_counts,
     )
 
 

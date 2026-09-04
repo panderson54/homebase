@@ -117,9 +117,12 @@ def appliance_detail(appliance_id):
     documents = document_service.get_documents_for('appliance', appliance.id)
     primary_photo = document_service.get_primary_photo_for('appliance', appliance.id)
     vendors = Vendor.query.filter_by(household_id=current_user.household_id).order_by(Vendor.name).all()
+    record_document_counts = document_service.get_document_counts_for(
+        'service_record', [r.id for r in appliance.service_records]
+    )
     return render_template(
         'appliances/detail.html', appliance=appliance, documents=documents, primary_photo=primary_photo,
-        vendors=vendors,
+        vendors=vendors, record_document_counts=record_document_counts,
     )
 
 

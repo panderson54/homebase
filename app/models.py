@@ -42,6 +42,7 @@ class DocumentEntityType(str, enum.Enum):
     home = 'home'
     vendor = 'vendor'
     paint_color = 'paint_color'
+    service_record = 'service_record'
 
 
 class TemplateKind(str, enum.Enum):

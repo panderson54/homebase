@@ -74,6 +74,11 @@ def _service_record_lines(records, show_vendor=True, show_target=False):
         )
         if record.notes:
             lines.append(f'    Notes: {record.notes}')
+        linked_docs = [
+            doc for doc in document_service.get_documents_for('service_record', record.id) if doc.external_url
+        ]
+        for doc in linked_docs:
+            lines.append(f'    {doc.doc_type.value.replace("_", " ").title()}: {doc.external_url}')
     return lines
 
 
