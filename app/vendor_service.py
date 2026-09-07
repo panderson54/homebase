@@ -31,3 +31,22 @@ def resolve_vendor(household_id, vendor_id, new_vendor_name=None, new_vendor_typ
     db.session.add(vendor)
     db.session.flush()
     return vendor
+
+
+def find_or_create_by_name(household_id, name, vendor_type=None):
+    """Look up a vendor by name (case-insensitive) within the household, or
+    create a stub with just the name/type — used by callers, like the MCP
+    tool, that identify a vendor by name rather than by picking an id from a
+    select. Returns (vendor, created).
+    """
+    name = name.strip()
+    vendor = Vendor.query.filter(
+        Vendor.household_id == household_id, db.func.lower(Vendor.name) == name.lower()
+    ).first()
+    if vendor:
+        return vendor, False
+
+    vendor = Vendor(household_id=household_id, name=name, vendor_type=vendor_type or 'other')
+    db.session.add(vendor)
+    db.session.flush()
+    return vendor, True

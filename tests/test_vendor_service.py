@@ -47,3 +47,33 @@ class TestResolveVendor:
 
     def test_non_numeric_vendor_id_returns_none(self, db, household):
         assert vendor_service.resolve_vendor(household.id, 'not-a-number') is None
+
+
+class TestFindOrCreateByName:
+    def test_finds_existing_vendor_case_insensitively(self, db, household, vendor):
+        result, created = vendor_service.find_or_create_by_name(household.id, 'acme hvac')
+        assert result is vendor
+        assert created is False
+
+    def test_creates_stub_when_no_match(self, db, household):
+        result, created = vendor_service.find_or_create_by_name(household.id, 'Joe the Handyman', 'handyman')
+        assert created is True
+        assert result.id is not None
+        assert result.name == 'Joe the Handyman'
+        assert result.vendor_type == 'handyman'
+        assert result.household_id == household.id
+
+    def test_created_stub_defaults_type_to_other(self, db, household):
+        result, created = vendor_service.find_or_create_by_name(household.id, 'Some Vendor')
+        assert created is True
+        assert result.vendor_type == 'other'
+
+    def test_does_not_match_vendor_from_other_household(self, db, household, vendor):
+        other_household = Household(name='Other Home')
+        db.session.add(other_household)
+        db.session.commit()
+
+        result, created = vendor_service.find_or_create_by_name(other_household.id, 'ACME HVAC')
+        assert created is True
+        assert result.household_id == other_household.id
+        assert result.id != vendor.id

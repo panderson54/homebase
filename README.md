@@ -86,8 +86,10 @@ app/
   document_service.py         # Document storage + entity linking (appliance/home/vendor)
   vendor_service.py           # Resolves a vendor pick/quick-add for a service visit
   vendor_types_data.py        # Suggested vendor types (HVAC, plumbing, etc.)
+  service_record_service.py   # Creates a ServiceRecord for an appliance or zone
   context_export_service.py   # Builds the Markdown context export
   cli.py                      # `flask create-user`, `flask seed-templates`
+  mcp_server.py               # MCP server: log service visits via an LLM client
   routes/                     # Blueprint, split by domain
   templates/, static/         # Jinja2 templates, Bootstrap-based
 migrations/                    # Alembic migrations
@@ -101,6 +103,22 @@ docs/appliance-tracker-plan.md  # Architecture & build plan
   account; prompts for email, name, and password
 - `flask seed-templates` — (re)loads `category_templates` from
   `app/category_templates_data.py`; safe to re-run, it replaces existing rows
+
+## MCP server
+
+`app/mcp_server.py` runs a basic stdio [MCP](https://modelcontextprotocol.io)
+server so an LLM client (e.g. Claude Desktop) can log service visits for you:
+
+```bash
+.venv/bin/python -m app.mcp_server
+```
+
+It exposes `list_appliances`, `list_zones`, and `list_vendors` (read-only
+lookups) and `create_service` (logs a vendor visit against an existing
+appliance or zone, reusing a vendor by name or creating a stub for a new
+one). It never creates appliances, zones, or rooms — those stay a manual
+step in the web app. Like `flask create-user`, it operates on the single
+household this instance was set up for, so no separate login is needed.
 
 ## Deployment
 
