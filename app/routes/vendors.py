@@ -1,8 +1,8 @@
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from app import db, document_service, logo_service
-from app.models import Appliance, ApplianceStatus, ServiceCategory, ServiceRecord, Vendor, Zone
+from app import db, document_service, logo_service, service_record_service
+from app.models import Appliance, ApplianceStatus, Vendor, Zone
 from app.routes import main_bp
 from app.routes.helpers import (
     get_household_vendor_or_404, parse_date, parse_decimal, parse_service_target, slugify,
@@ -164,15 +164,11 @@ def vendor_service_create(vendor_id):
     vendor = get_household_vendor_or_404(vendor_id)
     appliance, zone = parse_service_target(request.form.get('target'), vendor.household_id)
 
-    db.session.add(ServiceRecord(
-        household_id=vendor.household_id,
-        vendor_id=vendor.id,
-        appliance_id=appliance.id if appliance else None,
-        zone_id=zone.id if zone else None,
+    service_record_service.create(
+        household_id=vendor.household_id, vendor=vendor, appliance=appliance, zone=zone,
         service_date=parse_date(request.form.get('service_date')),
         notes=request.form.get('notes', '').strip() or None,
         cost=parse_decimal(request.form.get('cost')),
-        category=ServiceCategory(request.form.get('category', 'maintenance')),
-    ))
-    db.session.commit()
+        category=request.form.get('category', 'maintenance'),
+    )
     return redirect(url_for('main.vendor_detail', vendor_id=vendor.id))

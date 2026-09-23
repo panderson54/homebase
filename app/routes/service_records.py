@@ -1,7 +1,7 @@
 from flask import abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from app import db, document_service, vendor_service
+from app import db, document_service, service_record_service, vendor_service
 from app.models import Appliance, ServiceCategory, ServiceRecord, Vendor, Zone
 from app.routes import main_bp
 from app.routes.helpers import (
@@ -32,16 +32,13 @@ def service_record_create(appliance_id):
         flash('Select an existing vendor or enter a name for a new one.', 'danger')
         return redirect(url_for('main.appliance_detail', appliance_id=appliance.id))
 
-    db.session.add(ServiceRecord(
-        household_id=appliance.household_id,
-        vendor_id=vendor.id,
-        appliance_id=appliance.id,
+    service_record_service.create(
+        household_id=appliance.household_id, vendor=vendor, appliance=appliance,
         service_date=parse_date(request.form.get('service_date')),
         notes=request.form.get('notes', '').strip() or None,
         cost=parse_decimal(request.form.get('cost')),
-        category=ServiceCategory(request.form.get('category', 'maintenance')),
-    ))
-    db.session.commit()
+        category=request.form.get('category', 'maintenance'),
+    )
     return redirect(url_for('main.appliance_detail', appliance_id=appliance.id))
 
 
