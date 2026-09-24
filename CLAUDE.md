@@ -18,6 +18,7 @@ app/
   vendor_types_data.py     # Suggested vendor types for the select-with-"other" picker
   context_export_service.py  # Builds the Markdown context export
   cli.py                  # `flask create-user`, `flask seed-templates`
+  proxy_auth.py           # AUTH_MODE=proxy: trust the Google-SSO gateway's identity header
   routes/                 # Request handlers split by domain (sub-package)
     __init__.py           # Blueprint + sub-module imports
     helpers.py            # Shared route utilities (household scoping, slugify, parse_date)

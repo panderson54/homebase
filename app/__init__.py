@@ -127,6 +127,9 @@ def create_app():
             'Add SECRET_KEY to your .env file before deploying.'
         )
 
+    from app import proxy_auth
+    proxy_auth.init_app(app)
+
     db.init_app(app)
     migrate.init_app(app, db)
     csrf.init_app(app)
@@ -140,7 +143,15 @@ def create_app():
 
     @login_manager.user_loader
     def load_user(user_id):
+        # In proxy mode the gateway header is the only identity source; a stale
+        # session from password mode must not override it.
+        if proxy_auth.is_proxy_mode():
+            return None
         return db.session.get(User, int(user_id))
+
+    @login_manager.request_loader
+    def load_user_from_request(req):
+        return proxy_auth.load_user_from_gateway(req, User)
 
     from app.routes import main_bp
     app.register_blueprint(main_bp)

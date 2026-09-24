@@ -1,5 +1,6 @@
 """Flask CLI commands: `flask create-user`, `flask seed-templates`."""
 import getpass
+import secrets
 
 import click
 
@@ -13,7 +14,9 @@ def register(app):
     @click.option('--email', prompt=True)
     @click.option('--name', prompt=True)
     @click.option('--household-name', default='Home', show_default=True)
-    def create_user(email, name, household_name):
+    @click.option('--no-password', is_flag=True,
+                  help='For Google sign-in (AUTH_MODE=proxy): pre-approve the account without a password.')
+    def create_user(email, name, household_name, no_password):
         """Create a household (if none exists yet) and a user account."""
         email = email.strip().lower()
         if User.query.filter_by(email=email).first():
@@ -26,12 +29,16 @@ def register(app):
             db.session.add(household)
             db.session.flush()
 
-        password = getpass.getpass('Password: ')
-        confirm = getpass.getpass('Confirm password: ')
-        if password != confirm:
-            click.echo('Passwords did not match.')
-            db.session.rollback()
-            return
+        if no_password:
+            # Never shown to anyone — password login is disabled in proxy mode.
+            password = secrets.token_urlsafe(32)
+        else:
+            password = getpass.getpass('Password: ')
+            confirm = getpass.getpass('Confirm password: ')
+            if password != confirm:
+                click.echo('Passwords did not match.')
+                db.session.rollback()
+                return
 
         user = User(household_id=household.id, email=email, name=name)
         user.set_password(password)

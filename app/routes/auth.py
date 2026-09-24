@@ -2,6 +2,7 @@ from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 
 from app.models import User
+from app.proxy_auth import SIGN_OUT_URL, is_proxy_mode
 from app.routes import main_bp
 
 
@@ -28,4 +29,6 @@ def login():
 @login_required
 def logout():
     logout_user()
+    if is_proxy_mode():
+        return redirect(SIGN_OUT_URL)
     return redirect(url_for('main.login'))

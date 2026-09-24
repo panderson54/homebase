@@ -100,7 +100,9 @@ docs/appliance-tracker-plan.md  # Architecture & build plan
 ## CLI commands
 
 - `flask create-user` — creates the household (on first run) and a user
-  account; prompts for email, name, and password
+  account; prompts for email, name, and password. With `--no-password` it
+  skips the password, for pre-approving a Google account under the shared
+  Google sign-in (`AUTH_MODE=proxy`, below)
 - `flask seed-templates` — (re)loads `category_templates` from
   `app/category_templates_data.py`; safe to re-run, it replaces existing rows
 
@@ -133,6 +135,22 @@ The app listens on port 5100, with `./data` (SQLite DB + uploaded files) and
 `./logs` bind-mounted so they persist across container rebuilds. Run the
 CLI commands above via `docker compose exec homebase flask create-user`
 (and `seed-templates`) once the container is up.
+
+### Shared Google sign-in with `ledger_finance` (recommended if exposed)
+
+Both apps can run on one server and one domain (`home.<domain>`,
+`ledger.<domain>`) behind a single Google sign-in with a strict allowlist of
+pre-approved accounts. The stack (Caddy + oauth2-proxy + both apps) and the
+full setup runbook live in the `ledger_finance` repo under
+[`deploy/`](https://github.com/panderson54/ledger_finance/tree/main/deploy).
+
+In that setup Homebase runs with `AUTH_MODE=proxy` and `AUTH_PROXY_SECRET`
+set: it trusts the Google email the gateway forwards (only alongside the
+gateway's secret header) and maps it to a row in `users`. That table is
+Homebase's own allowlist: a Google account the gateway lets through still
+gets a 403 until `flask create-user --no-password` links it. The password
+login is not used in this mode, and "Log out" signs out of the shared
+Google session.
 
 ### Raspberry Pi (self-hosted, alongside `ledger_finance`)
 
