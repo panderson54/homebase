@@ -44,6 +44,7 @@ class DocumentEntityType(str, enum.Enum):
     vendor = 'vendor'
     paint_color = 'paint_color'
     service_record = 'service_record'
+    vendor_quote = 'vendor_quote'
 
 
 class TemplateKind(str, enum.Enum):
@@ -54,6 +55,12 @@ class TemplateKind(str, enum.Enum):
 class ServiceCategory(str, enum.Enum):
     maintenance = 'maintenance'
     improvement = 'improvement'
+
+
+class QuoteStatus(str, enum.Enum):
+    pending = 'pending'
+    accepted = 'accepted'
+    declined = 'declined'
 
 
 class FeatureRequestStatus(str, enum.Enum):
@@ -315,6 +322,10 @@ class Vendor(db.Model):
     services = db.relationship(
         'ServiceRecord', back_populates='vendor', order_by='ServiceRecord.service_date.desc()'
     )
+    quotes = db.relationship(
+        'VendorQuote', back_populates='vendor', cascade='all, delete-orphan',
+        order_by='VendorQuote.created_at.desc()',
+    )
 
     __table_args__ = (
         db.CheckConstraint('rating IS NULL OR rating BETWEEN 1 AND 5', name='ck_vendor_rating_range'),
@@ -325,6 +336,27 @@ class Vendor(db.Model):
         """Human-readable vendor type, falling back to a humanized slug for a
         custom (non-seeded) type rather than showing the raw underscore_case."""
         return VENDOR_TYPE_LABELS.get(self.vendor_type) or self.vendor_type.replace('_', ' ').title()
+
+
+class VendorQuote(db.Model):
+    """A quote from a vendor. Scoped to a household through its vendor; any
+    attached PDF is a Document linked via DocumentLink ('vendor_quote')."""
+    __tablename__ = 'vendor_quotes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=False, index=True)
+    quote_number = db.Column(db.String(80))
+    description = db.Column(db.String(300))
+    amount = db.Column(db.Numeric(10, 2))
+    valid_until = db.Column(db.Date)
+    status = db.Column(db.Enum(QuoteStatus, native_enum=False), nullable=False, default=QuoteStatus.pending)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    vendor = db.relationship('Vendor', back_populates='quotes')
+
+    @property
+    def is_expired(self):
+        return self.valid_until is not None and self.valid_until < date.today()
 
 
 class PaintColor(db.Model):

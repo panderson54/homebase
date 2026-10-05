@@ -12,6 +12,7 @@ from app.routes import (  # noqa: E402,F401  (must import after main_bp is defin
     consumables,
     service_records,
     vendors,
+    vendor_quotes,
     paint_colors,
     rooms,
     zones,

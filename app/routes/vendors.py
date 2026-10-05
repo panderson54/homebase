@@ -83,9 +83,13 @@ def vendor_detail(vendor_id):
     record_document_counts = document_service.get_document_counts_for(
         'service_record', [r.id for r in vendor.services]
     )
+    quote_documents = {
+        quote.id: document_service.get_documents_for('vendor_quote', quote.id) for quote in vendor.quotes
+    }
     return render_template(
         'vendors/detail.html', vendor=vendor, documents=documents, primary_photo=primary_photo,
         appliances=appliances, zones=zones, record_document_counts=record_document_counts,
+        quote_documents=quote_documents,
     )
 
 

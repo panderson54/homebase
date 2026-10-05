@@ -82,6 +82,20 @@ def _service_record_lines(records, show_vendor=True, show_target=False):
     return lines
 
 
+def _quote_lines(quotes):
+    if not quotes:
+        return ['  (no quotes recorded)']
+    lines = []
+    for quote in quotes:
+        number = f'#{quote.quote_number}' if quote.quote_number else '(no number)'
+        amount = f' — ${quote.amount:.2f}' if quote.amount is not None else ''
+        valid = f' — valid until {quote.valid_until.isoformat()}' if quote.valid_until else ''
+        lines.append(f'  - {number}{amount}{valid} [{quote.status.value}]')
+        if quote.description:
+            lines.append(f'    {quote.description}')
+    return lines
+
+
 def _vendor_section(vendor):
     lines = [f'### {vendor.name} ({vendor.vendor_type_label})', '']
     for field_label, value in (
@@ -99,6 +113,10 @@ def _vendor_section(vendor):
 
     lines.append('#### Documents')
     lines.extend(_document_lines(document_service.get_documents_for('vendor', vendor.id)))
+    lines.append('')
+
+    lines.append('#### Quotes')
+    lines.extend(_quote_lines(vendor.quotes))
     lines.append('')
 
     lines.append('#### Service history')

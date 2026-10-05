@@ -4,7 +4,7 @@ import re
 from flask import abort
 from flask_login import current_user
 
-from app.models import Appliance, FeatureRequest, FrequencyUnit, PaintColor, Room, Vendor, Zone
+from app.models import Appliance, FeatureRequest, FrequencyUnit, PaintColor, Room, Vendor, VendorQuote, Zone
 
 _HEX_COLOR_RE = re.compile(r'^#[0-9A-Fa-f]{6}$')
 
@@ -39,6 +39,14 @@ def get_household_vendor_or_404(vendor_id):
     if vendor is None:
         abort(404)
     return vendor
+
+
+def get_vendor_quote_or_404(vendor, quote_id):
+    """Fetch a quote belonging to `vendor` (already household-scoped), or 404."""
+    quote = VendorQuote.query.filter_by(id=quote_id, vendor_id=vendor.id).first()
+    if quote is None:
+        abort(404)
+    return quote
 
 
 def get_household_paint_color_or_404(paint_color_id):
