@@ -205,6 +205,8 @@ def _appliance_section(appliance):
     ):
         if value:
             lines.append(f'- {field_label}: {value}')
+    for field_label, value in appliance.specs:
+        lines.append(f'- {field_label}: {value}')
     if appliance.notes:
         lines.append(f'- Notes: {appliance.notes}')
     if appliance.pro_service_interval_value:

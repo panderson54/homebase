@@ -93,6 +93,18 @@
   </div>
 
   <div class="col-12">
+    <h2 class="h6 mt-2 mb-0">Specifications</h2>
+    <div class="form-text">All optional — e.g. capacity "7.0 cu ft", electrical "240V / 30A".</div>
+  </div>
+  {% for attr, label in spec_fields %}
+  <div class="col-md-4">
+    <label class="form-label" for="{{ attr }}">{{ label }}</label>
+    <input type="text" maxlength="200" class="form-control" id="{{ attr }}" name="{{ attr }}"
+           value="{{ appliance[attr] or '' if appliance else '' }}">
+  </div>
+  {% endfor %}
+
+  <div class="col-12">
     <label class="form-label" for="notes">Notes</label>
     <textarea class="form-control" id="notes" name="notes" rows="3">{{ appliance.notes if appliance else '' }}</textarea>
   </div>

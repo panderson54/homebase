@@ -3,7 +3,7 @@ from flask_login import current_user, login_required
 
 from app import appliance_lookup_service, db, document_service
 from app.category_templates_data import CATEGORY_LABELS
-from app.models import Appliance, ApplianceStatus, Room, Vendor
+from app.models import APPLIANCE_SPEC_FIELDS, Appliance, ApplianceStatus, Room, Vendor
 from app.routes import main_bp
 from app.routes.helpers import get_household_appliance_or_404, parse_date, parse_pro_service_interval, slugify
 from app.template_service import apply_category_template
@@ -24,6 +24,11 @@ def _parse_room_id(form, household_id):
 def _parse_manufacture_year(form):
     value = form.get('manufacture_year', '').strip()
     return int(value) if value.isdigit() else None
+
+
+def _apply_spec_fields(appliance, form):
+    for attr, _label in APPLIANCE_SPEC_FIELDS:
+        setattr(appliance, attr, form.get(attr, '').strip() or None)
 
 
 @main_bp.route('/appliances/lookup', methods=['POST'])
@@ -80,6 +85,7 @@ def appliance_new():
         appliance.pro_service_interval_value, appliance.pro_service_interval_unit = (
             parse_pro_service_interval(request.form)
         )
+        _apply_spec_fields(appliance, request.form)
         db.session.add(appliance)
         db.session.flush()  # assign appliance.id before seeding related rows
 
@@ -107,7 +113,10 @@ def appliance_new():
         return redirect(url_for('main.appliance_detail', appliance_id=appliance.id))
 
     rooms = Room.query.filter_by(household_id=current_user.household_id).order_by(Room.floor, Room.name).all()
-    return render_template('appliances/form.html', appliance=None, category_labels=CATEGORY_LABELS, rooms=rooms)
+    return render_template(
+        'appliances/form.html', appliance=None, category_labels=CATEGORY_LABELS, rooms=rooms,
+        spec_fields=APPLIANCE_SPEC_FIELDS,
+    )
 
 
 @main_bp.route('/appliances/<int:appliance_id>')
@@ -161,11 +170,15 @@ def appliance_edit(appliance_id):
         appliance.pro_service_interval_value, appliance.pro_service_interval_unit = (
             parse_pro_service_interval(request.form)
         )
+        _apply_spec_fields(appliance, request.form)
         db.session.commit()
         return redirect(url_for('main.appliance_detail', appliance_id=appliance.id))
 
     rooms = Room.query.filter_by(household_id=appliance.household_id).order_by(Room.floor, Room.name).all()
-    return render_template('appliances/form.html', appliance=appliance, category_labels=CATEGORY_LABELS, rooms=rooms)
+    return render_template(
+        'appliances/form.html', appliance=appliance, category_labels=CATEGORY_LABELS, rooms=rooms,
+        spec_fields=APPLIANCE_SPEC_FIELDS,
+    )
 
 
 @main_bp.route('/appliances/<int:appliance_id>/archive', methods=['POST'])
