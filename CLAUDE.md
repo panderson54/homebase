@@ -12,6 +12,8 @@ app/
   maintenance_calc.py     # Pure due-date math (add_interval, compute_next_due, due_bucket)
   category_templates_data.py  # Seed data: category -> default tasks/consumables/pro-service interval
   template_service.py     # Applies a category template to a newly created appliance
+  maintenance_task_service.py  # Sets a task's last-completed/next-due dates; new tasks
+                           #   start their schedule as of creation (start_schedule)
   document_service.py     # Document storage + entity linking (save/fetch/unlink) — the
                            #   only module that touches Document/DocumentLink directly
   vendor_service.py        # Resolves a vendor pick/quick-add for a service-record submission

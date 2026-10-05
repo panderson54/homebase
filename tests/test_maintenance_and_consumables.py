@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 from app import document_service
 from app.models import (
@@ -20,7 +20,62 @@ class TestMaintenanceTasks:
         assert resp.status_code == 302
         task = MaintenanceTask.query.filter_by(appliance_id=appliance.id).first()
         assert task.title == 'Check filter'
-        assert task.next_due_at is None
+        assert task.last_completed_at == date.today()
+        assert task.next_due_at == date.today() + timedelta(days=30)
+
+    def test_set_last_completed_reschedules_without_logging(self, logged_in_client, db, household):
+        appliance = Appliance(household_id=household.id, name='Furnace', category='furnace')
+        db.session.add(appliance)
+        db.session.commit()
+        task = MaintenanceTask(
+            appliance_id=appliance.id, title='Check filter', frequency_value=30, frequency_unit='days',
+            last_completed_at=date(2026, 9, 1), next_due_at=date(2026, 10, 1),
+        )
+        db.session.add(task)
+        db.session.commit()
+
+        resp = logged_in_client.post(f'/maintenance-tasks/{task.id}/last-completed', data={
+            'last_completed_at': '2026-06-01',
+        })
+        assert resp.status_code == 302
+        db.session.refresh(task)
+        assert task.last_completed_at == date(2026, 6, 1)
+        assert task.next_due_at == date(2026, 7, 1)
+        assert MaintenanceLog.query.filter_by(task_id=task.id).count() == 0
+
+    def test_set_last_completed_rejects_missing_or_bad_date(self, logged_in_client, db, household):
+        appliance = Appliance(household_id=household.id, name='Furnace', category='furnace')
+        db.session.add(appliance)
+        db.session.commit()
+        task = MaintenanceTask(
+            appliance_id=appliance.id, title='Check filter', frequency_value=30, frequency_unit='days'
+        )
+        db.session.add(task)
+        db.session.commit()
+
+        for value in ('', 'not-a-date'):
+            resp = logged_in_client.post(f'/maintenance-tasks/{task.id}/last-completed', data={
+                'last_completed_at': value,
+            })
+            assert resp.status_code == 400
+
+    def test_set_last_completed_for_other_household_is_404(self, logged_in_client, db):
+        other = Household(name='Other')
+        db.session.add(other)
+        db.session.commit()
+        appliance = Appliance(household_id=other.id, name='Furnace', category='furnace')
+        db.session.add(appliance)
+        db.session.commit()
+        task = MaintenanceTask(
+            appliance_id=appliance.id, title='Check filter', frequency_value=1, frequency_unit='months'
+        )
+        db.session.add(task)
+        db.session.commit()
+
+        resp = logged_in_client.post(f'/maintenance-tasks/{task.id}/last-completed', data={
+            'last_completed_at': '2026-06-01',
+        })
+        assert resp.status_code == 404
 
     def test_complete_task_sets_last_completed_and_next_due(self, logged_in_client, db, household, user):
         appliance = Appliance(household_id=household.id, name='Furnace', category='furnace')
@@ -91,6 +146,7 @@ class TestZoneMaintenanceTasks:
         task = MaintenanceTask.query.filter_by(zone_id=zone.id).first()
         assert task.title == 'Clear gutters'
         assert task.appliance_id is None
+        assert task.next_due_at == date.today() + timedelta(days=180)
 
     def test_complete_task_redirects_to_zone(self, logged_in_client, db, household):
         zone = Zone(household_id=household.id, name='Roof')

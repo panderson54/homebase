@@ -1,10 +1,10 @@
 from datetime import date
 
-from flask import redirect, request, url_for
+from flask import abort, redirect, request, url_for
 from flask_login import current_user, login_required
 
 from app import db
-from app.maintenance_calc import compute_next_due
+from app.maintenance_task_service import set_last_completed, start_schedule
 from app.models import FrequencyUnit, MaintenanceLog, MaintenanceTask
 from app.routes import main_bp
 from app.routes.helpers import get_household_appliance_or_404, get_household_zone_or_404, parse_date
@@ -26,13 +26,15 @@ def _task_parent_redirect(task):
 
 
 def _new_task(**owner_kwargs):
-    return MaintenanceTask(
+    task = MaintenanceTask(
         title=request.form.get('title', '').strip(),
         description=request.form.get('description', '').strip() or None,
         frequency_value=int(request.form['frequency_value']),
         frequency_unit=FrequencyUnit(request.form['frequency_unit']),
         **owner_kwargs,
     )
+    start_schedule(task, date.today())
+    return task
 
 
 @main_bp.route('/appliances/<int:appliance_id>/maintenance-tasks', methods=['POST'])
@@ -65,8 +67,23 @@ def maintenance_task_complete(task_id):
         completed_by_user_id=current_user.id,
         notes=request.form.get('notes', '').strip() or None,
     ))
-    task.last_completed_at = completed_at
-    task.next_due_at = compute_next_due(completed_at, task.frequency_value, task.frequency_unit.value)
+    set_last_completed(task, completed_at)
+    db.session.commit()
+    return _task_parent_redirect(task)
+
+
+@main_bp.route('/maintenance-tasks/<int:task_id>/last-completed', methods=['POST'])
+@login_required
+def maintenance_task_set_last_completed(task_id):
+    """Correct the last-completed date (e.g. the one assumed at creation) without logging a completion."""
+    task = _get_task_or_404(task_id)
+    try:
+        last_completed_at = parse_date(request.form.get('last_completed_at'))
+    except ValueError:
+        abort(400)
+    if last_completed_at is None:
+        abort(400)
+    set_last_completed(task, last_completed_at)
     db.session.commit()
     return _task_parent_redirect(task)
 
