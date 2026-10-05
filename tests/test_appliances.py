@@ -298,9 +298,10 @@ class TestApplianceSpecs:
         db.session.add_all([with_specs, without_specs])
         db.session.commit()
 
-        resp = logged_in_client.get(f'/appliances/{with_specs.id}')
-        assert b'Specifications' in resp.data
-        assert b'300 lb' in resp.data
+        html = logged_in_client.get(f'/appliances/{with_specs.id}').get_data(as_text=True)
+        specs_start = html.index('>Specifications<')
+        assert html.index('Appliance details') < specs_start < html.index('>Documents<')
+        assert '300 lb' in html[specs_start:html.index('>Documents<')]
         resp = logged_in_client.get(f'/appliances/{without_specs.id}')
         assert b'Specifications' not in resp.data
 
