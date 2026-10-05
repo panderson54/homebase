@@ -7,6 +7,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from app import db
 from app.category_templates_data import CATEGORY_LABELS
+from app.feature_request_data import AREA_LABELS, PRIORITY_LABELS, REQUEST_TYPE_LABELS, STATUS_LABELS
 from app.maintenance_calc import compute_next_due
 from app.vendor_types_data import VENDOR_TYPE_LABELS
 
@@ -55,6 +56,13 @@ class ServiceCategory(str, enum.Enum):
     improvement = 'improvement'
 
 
+class FeatureRequestStatus(str, enum.Enum):
+    unread = 'unread'
+    approved = 'approved'
+    denied = 'denied'
+    implemented = 'implemented'
+
+
 class Household(db.Model):
     __tablename__ = 'households'
 
@@ -75,6 +83,9 @@ class Household(db.Model):
     )
     zones = db.relationship(
         'Zone', back_populates='household', cascade='all, delete-orphan', order_by='Zone.name',
+    )
+    feature_requests = db.relationship(
+        'FeatureRequest', back_populates='household', cascade='all, delete-orphan',
     )
 
     @property
@@ -394,6 +405,62 @@ class Zone(db.Model):
             return None
         baseline = self.latest_service_date or self.created_at.date()
         return compute_next_due(baseline, self.pro_service_interval_value, self.pro_service_interval_unit.value)
+
+
+class FeatureRequest(db.Model):
+    """A feature request filed by an AI agent using the site, reviewed by the homeowner
+    on the unlisted /agent-request page. Field meanings live in feature_request_data.FIELDS."""
+    __tablename__ = 'feature_requests'
+
+    id = db.Column(db.Integer, primary_key=True)
+    household_id = db.Column(db.Integer, db.ForeignKey('households.id'), nullable=False)
+    title = db.Column(db.String(100), nullable=False)
+    summary = db.Column(db.String(300), nullable=False)
+    request_type = db.Column(db.String(40), nullable=False)
+    area = db.Column(db.String(40), nullable=False)
+    page_url = db.Column(db.String(500))
+    trying_to_do = db.Column(db.Text, nullable=False)
+    problem = db.Column(db.Text, nullable=False)
+    workaround = db.Column(db.Text)
+    proposed_behavior = db.Column(db.Text, nullable=False)
+    acceptance_criteria = db.Column(db.Text, nullable=False)
+    data_entities = db.Column(db.Text)
+    implementation_notes = db.Column(db.Text)
+    out_of_scope = db.Column(db.Text)
+    priority = db.Column(db.String(20), nullable=False)
+    priority_reason = db.Column(db.String(300))
+    related_requests = db.Column(db.String(200))
+    submitted_by = db.Column(db.String(120), nullable=False)
+    context_url = db.Column(db.String(500))
+    status = db.Column(
+        db.Enum(FeatureRequestStatus, native_enum=False), nullable=False, default=FeatureRequestStatus.unread
+    )
+    review_notes = db.Column(db.Text)
+    reviewed_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    household = db.relationship('Household', back_populates='feature_requests')
+
+    @property
+    def acceptance_criteria_list(self):
+        return [line.strip().lstrip('-*').strip() for line in self.acceptance_criteria.splitlines() if line.strip()]
+
+    @property
+    def request_type_label(self):
+        return REQUEST_TYPE_LABELS.get(self.request_type, self.request_type)
+
+    @property
+    def area_label(self):
+        return AREA_LABELS.get(self.area, self.area)
+
+    @property
+    def priority_label(self):
+        return PRIORITY_LABELS.get(self.priority, self.priority)
+
+    @property
+    def status_label(self):
+        return STATUS_LABELS[self.status.value]
 
 
 class CategoryTemplate(db.Model):

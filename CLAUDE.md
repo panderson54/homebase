@@ -17,13 +17,17 @@ app/
   vendor_service.py        # Resolves a vendor pick/quick-add for a service-record submission
   vendor_types_data.py     # Suggested vendor types for the select-with-"other" picker
   context_export_service.py  # Builds the Markdown context export
+  feature_request_data.py  # Agent feature request choices, field specs, agent instructions
+  feature_request_service.py  # Validate/create/update/review/render agent feature requests
+                           #   (shared by routes/agent_requests.py and mcp_server.py)
   cli.py                  # `flask create-user`, `flask seed-templates`
   routes/                 # Request handlers split by domain (sub-package)
     __init__.py           # Blueprint + sub-module imports
     helpers.py            # Shared route utilities (household scoping, slugify, parse_date)
     auth.py, dashboard.py, appliances.py, documents.py,
     maintenance.py, consumables.py, service_records.py, vendors.py,
-    paint_colors.py, home.py, export.py
+    paint_colors.py, home.py, export.py,
+    agent_requests.py     # Unlisted /agent-request page (no nav link)
   models.py                # SQLAlchemy ORM models
 ```
 
@@ -58,7 +62,8 @@ services or models.
 never read or modify another's data — there is no other access-control
 layer in this app. Vendors go through the equivalent
 `get_household_vendor_or_404()`, paint colors through
-`get_household_paint_color_or_404()`. A `Document` isn't owned by an appliance
+`get_household_paint_color_or_404()`, feature requests through
+`get_household_feature_request_or_404()`. A `Document` isn't owned by an appliance
 directly (see `DocumentLink` in `models.py`), and a `ServiceRecord` isn't
 always owned by an appliance either (a vendor visit can stand alone) — both
 carry their own `household_id` — check that directly when scoping access

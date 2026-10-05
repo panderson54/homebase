@@ -17,4 +17,5 @@ from app.routes import (  # noqa: E402,F401  (must import after main_bp is defin
     zones,
     home,
     export,
+    agent_requests,
 )

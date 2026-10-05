@@ -1,0 +1,18 @@
+{# Expects `instructions`, `instructions_intro`; set `instructions_open` to expand by default. #}
+<details class="card mb-4" id="agent-instructions" {% if instructions_open %}open{% endif %}>
+  <summary class="card-header fw-semibold">For AI agents: how to file a feature request</summary>
+  <div class="card-body small">
+    <p>{{ instructions_intro }}</p>
+    <ol class="mb-2">
+      {% for heading, body in instructions %}
+        <li class="mb-1"><strong>{{ heading }}</strong> {{ body }}</li>
+      {% endfor %}
+    </ol>
+    <p class="mb-0 text-muted">
+      To file: open <a href="{{ url_for('main.agent_request_new') }}">/agent-request/new</a>, fill in every
+      required field (marked *), and submit. If anything is invalid the form comes back with the errors listed at
+      the top and your input preserved — fix them all and resubmit. MCP-connected agents can use the
+      <code>submit_feature_request</code> tool instead.
+    </p>
+  </div>
+</details>

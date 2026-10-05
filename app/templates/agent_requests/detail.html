@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% set fr = feature_request %}
+{% block title %}#{{ fr.id }} {{ fr.title }} — Homebase{% endblock %}
+{% block head %}<meta name="robots" content="noindex, nofollow">{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('main.agent_request_list') }}" class="text-muted small d-inline-block mb-3">&larr; Back to feature requests</a>
+
+<div class="d-flex justify-content-between align-items-start mb-3 gap-3">
+  <div>
+    <h1 class="h3 mb-1"><span class="text-muted">#{{ fr.id }}</span> {{ fr.title }}</h1>
+    <div class="d-flex flex-wrap gap-2 align-items-center small">
+      {% include 'agent_requests/_status_badge.html' %}
+      <span class="badge text-bg-light border">{{ fr.request_type_label }}</span>
+      <span class="badge text-bg-light border">{{ fr.area_label }}</span>
+      <span class="badge text-bg-light border">Priority: {{ fr.priority_label }}</span>
+      <span class="text-muted">by {{ fr.submitted_by }} · {{ fr.created_at.strftime('%Y-%m-%d') }}</span>
+    </div>
+  </div>
+  <div class="text-nowrap">
+    <button type="button" class="btn btn-outline-secondary btn-sm" id="copyMarkdown">Copy as Markdown</button>
+    <a href="{{ url_for('main.agent_request_markdown', feature_request_id=fr.id) }}" class="btn btn-outline-secondary btn-sm">.md</a>
+    <a href="{{ url_for('main.agent_request_edit', feature_request_id=fr.id) }}" class="btn btn-outline-secondary btn-sm">Edit</a>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <p class="lead fs-6">{{ fr.summary }}</p>
+
+    {% macro section(heading, body) %}
+      {% if body %}
+        <section class="mb-4">
+          <h2 class="h6 text-uppercase text-muted">{{ heading }}</h2>
+          <p class="mb-0" style="white-space: pre-wrap;">{{ body }}</p>
+        </section>
+      {% endif %}
+    {% endmacro %}
+
+    {{ section('What the agent was trying to do', fr.trying_to_do) }}
+    {{ section("Problem / what's missing", fr.problem) }}
+    {{ section('Current workaround', fr.workaround) }}
+    {{ section('Proposed behavior', fr.proposed_behavior) }}
+
+    <section class="mb-4">
+      <h2 class="h6 text-uppercase text-muted">Acceptance criteria</h2>
+      <ul class="mb-0">
+        {% for item in fr.acceptance_criteria_list %}<li>{{ item }}</li>{% endfor %}
+      </ul>
+    </section>
+
+    {{ section('Data / entities involved', fr.data_entities) }}
+    {{ section('Implementation notes', fr.implementation_notes) }}
+    {{ section('Out of scope', fr.out_of_scope) }}
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card mb-3">
+      <div class="card-header fw-semibold">Review</div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('main.agent_request_review', feature_request_id=fr.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label class="form-label small" for="review_notes">Review notes <span class="text-muted">(shown to future agents)</span></label>
+          <textarea class="form-control form-control-sm mb-2" id="review_notes" name="review_notes" rows="3"
+                    placeholder="Why approved/denied, or any constraints on the build">{{ fr.review_notes or '' }}</textarea>
+          <div class="d-flex flex-wrap gap-2">
+            <button type="submit" name="status" value="approved" class="btn btn-success btn-sm">Approve</button>
+            <button type="submit" name="status" value="denied" class="btn btn-outline-danger btn-sm">Deny</button>
+            <button type="submit" name="status" value="implemented" class="btn btn-outline-primary btn-sm">Mark implemented</button>
+            {% if fr.status.value != 'unread' %}
+              <button type="submit" name="status" value="unread" class="btn btn-link btn-sm">Reset to unread</button>
+            {% endif %}
+          </div>
+        </form>
+        {% if fr.reviewed_at %}
+          <div class="small text-muted mt-2">{{ fr.status_label }} on {{ fr.reviewed_at.strftime('%Y-%m-%d') }}</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body small">
+        <dl class="mb-0">
+          {% if fr.priority_reason %}<dt>Priority reason</dt><dd>{{ fr.priority_reason }}</dd>{% endif %}
+          {% if fr.page_url %}<dt>Page where noticed</dt><dd><code>{{ fr.page_url }}</code></dd>{% endif %}
+          {% if fr.related_requests %}<dt>Related requests</dt><dd>{{ fr.related_requests }}</dd>{% endif %}
+          {% if fr.context_url %}<dt>Context</dt><dd><a href="{{ fr.context_url }}" target="_blank" rel="noopener">{{ fr.context_url }}</a></dd>{% endif %}
+          <dt>Last updated</dt><dd class="mb-0">{{ fr.updated_at.strftime('%Y-%m-%d %H:%M') }} UTC</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+</div>
+
+<textarea id="markdownSource" hidden readonly>{{ markdown }}</textarea>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById('copyMarkdown').addEventListener('click', function () {
+    var btn = this;
+    navigator.clipboard.writeText(document.getElementById('markdownSource').value).then(function () {
+      btn.textContent = 'Copied!';
+      setTimeout(function () { btn.textContent = 'Copy as Markdown'; }, 1500);
+    });
+  });
+</script>
+{% endblock %}
