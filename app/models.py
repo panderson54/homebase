@@ -124,9 +124,6 @@ APPLIANCE_SPEC_FIELDS = (
     ('electrical_specs', 'Electrical'),
     ('dimensions', 'Dimensions (H x W x D)'),
     ('weight', 'Weight'),
-    ('refrigerant', 'Refrigerant'),
-    ('warranty', 'Warranty'),
-    ('service_contact', 'Service contact'),
 )
 
 
@@ -152,9 +149,6 @@ class Appliance(db.Model):
     electrical_specs = db.Column(db.String(200))
     dimensions = db.Column(db.String(200))
     weight = db.Column(db.String(200))
-    refrigerant = db.Column(db.String(200))
-    warranty = db.Column(db.String(200))
-    service_contact = db.Column(db.String(200))
     pro_service_interval_value = db.Column(db.Integer)
     pro_service_interval_unit = db.Column(db.Enum(FrequencyUnit, native_enum=False))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

@@ -272,12 +272,12 @@ class TestApplianceSpecs:
         db.session.commit()
 
         resp = logged_in_client.post(f'/appliances/{appliance.id}/edit', data={
-            'name': 'Fridge', 'category': 'refrigerator', 'refrigerant': 'R-600a', 'weight': '  ',
+            'name': 'Fridge', 'category': 'refrigerator', 'dimensions': '70 x 36 x 30 in', 'weight': '  ',
             'notes': 'Old notes',
         })
         assert resp.status_code == 302
         db.session.refresh(appliance)
-        assert appliance.refrigerant == 'R-600a'
+        assert appliance.dimensions == '70 x 36 x 30 in'
         assert appliance.weight is None
         assert appliance.notes == 'Old notes'
 
@@ -292,7 +292,7 @@ class TestApplianceSpecs:
 
     def test_detail_shows_spec_section_only_when_specs_exist(self, logged_in_client, db, household):
         with_specs = Appliance(
-            household_id=household.id, name='Fridge', category='refrigerator', warranty='10 yr compressor',
+            household_id=household.id, name='Fridge', category='refrigerator', weight='300 lb',
         )
         without_specs = Appliance(household_id=household.id, name='Washer', category='washer')
         db.session.add_all([with_specs, without_specs])
@@ -300,7 +300,7 @@ class TestApplianceSpecs:
 
         resp = logged_in_client.get(f'/appliances/{with_specs.id}')
         assert b'Specifications' in resp.data
-        assert b'10 yr compressor' in resp.data
+        assert b'300 lb' in resp.data
         resp = logged_in_client.get(f'/appliances/{without_specs.id}')
         assert b'Specifications' not in resp.data
 
