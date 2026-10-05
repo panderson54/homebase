@@ -90,7 +90,8 @@ def _quote_lines(quotes):
         number = f'#{quote.quote_number}' if quote.quote_number else '(no number)'
         amount = f' — ${quote.amount:.2f}' if quote.amount is not None else ''
         valid = f' — valid until {quote.valid_until.isoformat()}' if quote.valid_until else ''
-        lines.append(f'  - {number}{amount}{valid} [{quote.status.value}]')
+        job = f' — for {quote.job.name}' if quote.job else ''
+        lines.append(f'  - {number}{amount}{valid} [{quote.status.value}]{job}')
         if quote.description:
             lines.append(f'    {quote.description}')
     return lines
@@ -137,6 +138,8 @@ def _zone_section(zone):
             f'- Professional service: every {zone.pro_service_interval_value} '
             f'{zone.pro_service_interval_unit.value}{next_due_str}'
         )
+    if zone.pro_service_vendor:
+        lines.append(f'- Chosen pro-service vendor: {zone.pro_service_vendor.name}')
     lines.append('')
 
     lines.append('#### Homeowner maintenance')
@@ -214,6 +217,8 @@ def _appliance_section(appliance):
             f'- Professional service: every {appliance.pro_service_interval_value} '
             f'{appliance.pro_service_interval_unit.value}{next_due_str}'
         )
+    if appliance.pro_service_vendor:
+        lines.append(f'- Chosen pro-service vendor: {appliance.pro_service_vendor.name}')
     lines.append('')
 
     lines.append('#### Documents')

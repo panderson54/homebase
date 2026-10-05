@@ -1,7 +1,7 @@
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from app import db, document_service, vendor_service
+from app import db, document_service, vendor_quote_service, vendor_service
 from app.models import ServiceCategory, ServiceRecord, Vendor, Zone
 from app.routes import main_bp
 from app.routes.helpers import (
@@ -38,6 +38,7 @@ def zone_detail(zone_id):
     )
     return render_template(
         'zones/detail.html', zone=zone, vendors=vendors, record_document_counts=record_document_counts,
+        unlinked_quotes=vendor_quote_service.unlinked_quotes(zone.household_id),
     )
 
 

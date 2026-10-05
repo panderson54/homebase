@@ -25,6 +25,43 @@
   </div>
 </div>
 
+{% from 'quotes/_macros.html' import valid_until, job_target, job_link %}
+{% if open_quote_groups %}
+  <h2 class="h5 mt-4">Open quotes <span class="text-muted">({{ open_quote_groups|sum(attribute='quotes', start=[])|length }})</span></h2>
+  <div class="row g-3 mb-4">
+    {% for group in open_quote_groups %}
+      <div class="col-md-6">
+        <div class="card h-100">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            {% if group.appliance or group.zone %}
+              <strong>{{ job_link(group.appliance, group.zone) }}</strong>
+              <a href="{{ url_for('main.quote_compare', target=job_target(group.appliance, group.zone)) }}"
+                 class="btn btn-sm btn-outline-primary">Compare</a>
+            {% else %}
+              <strong>Not linked to a job</strong>
+              <span class="small text-muted">Link from an appliance or zone to compare</span>
+            {% endif %}
+          </div>
+          <ul class="list-group list-group-flush">
+            {% for quote in group.quotes %}
+              <li class="list-group-item d-flex justify-content-between align-items-start">
+                <div>
+                  <a href="{{ url_for('main.vendor_detail', vendor_id=quote.vendor.id) }}">{{ quote.vendor.name }}</a>
+                  {% if quote.description %}<div class="small text-muted">{{ quote.description }}</div>{% endif %}
+                </div>
+                <div class="text-end small">
+                  <div class="font-tabular">{{ quote.amount|currency if quote.amount is not none else '—' }}</div>
+                  {% if quote.valid_until %}<div class="text-muted">Valid until {{ valid_until(quote) }}</div>{% endif %}
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
 {% macro kind_badge(kind) %}
   {% if kind == 'pro_service' %}
     <span class="badge badge-kind-pro_service">Pro service</span>

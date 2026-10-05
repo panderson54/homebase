@@ -1,0 +1,43 @@
+{% macro status_badge(quote) %}
+  {% set quote_badge = {'pending': 'text-bg-warning', 'accepted': 'text-bg-success', 'declined': 'text-bg-secondary'}[quote.status.value] %}
+  <span class="badge {{ quote_badge }} text-capitalize">{{ quote.status.value }}</span>
+{% endmacro %}
+
+{% macro valid_until(quote) %}
+  {{ quote.valid_until|datefmt if quote.valid_until else '—' }}
+  {% if quote.is_expired and quote.status.value == 'pending' %}
+    <span class="badge text-bg-light border text-muted">Expired</span>
+  {% endif %}
+{% endmacro %}
+
+{% macro job_target(appliance, zone) -%}
+  {{ 'appliance:%d'|format(appliance.id) if appliance else 'zone:%d'|format(zone.id) }}
+{%- endmacro %}
+
+{% macro job_link(appliance, zone) %}
+  {% if appliance %}
+    <a href="{{ url_for('main.appliance_detail', appliance_id=appliance.id) }}">{{ appliance.name }}</a>
+  {% elif zone %}
+    <a href="{{ url_for('main.zone_detail', zone_id=zone.id) }}">{{ zone.name }}</a>
+  {% endif %}
+{% endmacro %}
+
+{% macro target_select(appliances, zones, selected_appliance_id=none, selected_zone_id=none, small=false) %}
+  <select class="form-select {{ 'form-select-sm' if small }}" id="target" name="target">
+    <option value="">No specific job</option>
+    {% if appliances %}
+      <optgroup label="Appliance">
+        {% for appliance in appliances %}
+          <option value="appliance:{{ appliance.id }}" {{ 'selected' if selected_appliance_id == appliance.id }}>{{ appliance.name }}</option>
+        {% endfor %}
+      </optgroup>
+    {% endif %}
+    {% if zones %}
+      <optgroup label="Zone">
+        {% for zone in zones %}
+          <option value="zone:{{ zone.id }}" {{ 'selected' if selected_zone_id == zone.id }}>{{ zone.name }}</option>
+        {% endfor %}
+      </optgroup>
+    {% endif %}
+  </select>
+{% endmacro %}
