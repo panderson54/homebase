@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% from 'quotes/_macros.html' import status_badge, valid_until %}
+{% block title %}Compare quotes — {{ job.name }} — Homebase{% endblock %}
+
+{% macro attachments(quote) %}
+  {% for doc in quote_documents.get(quote.id, []) %}
+    {% if doc.file_path %}
+      <a href="{{ url_for('main.document_file', document_id=doc.id) }}" target="_blank">{{ doc.original_filename }}</a>
+    {% else %}
+      <a href="{{ doc.external_url }}" target="_blank" rel="noopener">Link</a>
+    {% endif %}{{ ', ' if not loop.last }}
+  {% endfor %}
+{% endmacro %}
+
+{% block content %}
+<h1 class="h3 mb-1">Compare quotes <span class="text-muted fs-5">— <a href="{{ job_url }}">{{ job.name }}</a></span></h1>
+<p class="text-muted mb-4">
+  {% if job.pro_service_vendor %}
+    Chosen vendor:
+    <a href="{{ url_for('main.vendor_detail', vendor_id=job.pro_service_vendor.id) }}"><strong>{{ job.pro_service_vendor.name }}</strong></a>.
+  {% else %}
+    No quote accepted yet.
+  {% endif %}
+</p>
+
+<h2 class="h5">Open <span class="text-muted">({{ open_quotes|length }})</span></h2>
+{% if open_quotes %}
+  <div class="row g-3 mb-5">
+    {% for quote in open_quotes %}
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h3 class="h6 card-title mb-1">
+              <a href="{{ url_for('main.vendor_detail', vendor_id=quote.vendor.id) }}">{{ quote.vendor.name }}</a>
+            </h3>
+            <div class="small text-muted mb-2">{{ '#' ~ quote.quote_number if quote.quote_number else 'No quote number' }}</div>
+            <div class="fs-4 font-tabular mb-2">{{ quote.amount|currency if quote.amount is not none else '—' }}</div>
+            <dl class="row small mb-0">
+              <dt class="col-5">Valid until</dt>
+              <dd class="col-7">{{ valid_until(quote) }}</dd>
+              <dt class="col-5">Received</dt>
+              <dd class="col-7">{{ quote.created_at|datefmt }}</dd>
+              {% if quote.description %}
+                <dt class="col-5">Details</dt>
+                <dd class="col-7">{{ quote.description }}</dd>
+              {% endif %}
+              {% if quote_documents.get(quote.id) %}
+                <dt class="col-5">Attachments</dt>
+                <dd class="col-7">{{ attachments(quote) }}</dd>
+              {% endif %}
+            </dl>
+          </div>
+          <div class="card-footer d-flex gap-2">
+            <form method="post" action="{{ url_for('main.vendor_quote_accept', vendor_id=quote.vendor.id, quote_id=quote.id) }}"
+                  data-confirm="Accept {{ quote.vendor.name }}'s quote? The other quotes for {{ job.name }} will be marked declined.">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="return_to" value="compare">
+              <button type="submit" class="btn btn-sm btn-success">Accept</button>
+            </form>
+            <a href="{{ url_for('main.vendor_quote_edit', vendor_id=quote.vendor.id, quote_id=quote.id) }}"
+               class="btn btn-sm btn-outline-secondary">Edit</a>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="text-muted mb-5">No open quotes for this job.</p>
+{% endif %}
+
+<h2 class="h5">Decided <span class="text-muted">({{ decided_quotes|length }})</span></h2>
+{% if decided_quotes %}
+  <div class="table-responsive">
+    <table class="table table-sm align-middle">
+      <thead>
+        <tr>
+          <th>Vendor</th>
+          <th>Quote #</th>
+          <th>Details</th>
+          <th class="text-end">Amount</th>
+          <th>Valid until</th>
+          <th>Status</th>
+          <th>Attachments</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for quote in decided_quotes %}
+          <tr>
+            <td><a href="{{ url_for('main.vendor_detail', vendor_id=quote.vendor.id) }}">{{ quote.vendor.name }}</a></td>
+            <td>{{ quote.quote_number or '—' }}</td>
+            <td class="small">{{ quote.description or '' }}</td>
+            <td class="text-end font-tabular">{{ quote.amount|currency if quote.amount is not none else '—' }}</td>
+            <td>{{ valid_until(quote) }}</td>
+            <td>{{ status_badge(quote) }}</td>
+            <td class="small">{{ attachments(quote) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p class="text-muted">Nothing decided yet.</p>
+{% endif %}
+{% endblock %}

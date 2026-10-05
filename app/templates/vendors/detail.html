@@ -68,6 +68,7 @@
 {% endif %}
 
 <!-- Quotes -->
+{% from 'quotes/_macros.html' import status_badge, valid_until, job_link, target_select %}
 <section class="mb-5">
   <h2 class="h5">Quotes</h2>
   {% if vendor.quotes %}
@@ -77,6 +78,7 @@
           <tr>
             <th>Quote #</th>
             <th>Description</th>
+            <th>For</th>
             <th class="text-end">Amount</th>
             <th>Valid until</th>
             <th>Status</th>
@@ -89,17 +91,10 @@
             <tr>
               <td>{{ quote.quote_number or '—' }}</td>
               <td class="small">{{ quote.description or '' }}</td>
+              <td class="small">{{ job_link(quote.appliance, quote.zone) if quote.job else '—' }}</td>
               <td class="text-end font-tabular">{{ quote.amount|currency if quote.amount is not none else '—' }}</td>
-              <td>
-                {{ quote.valid_until|datefmt if quote.valid_until else '—' }}
-                {% if quote.is_expired and quote.status.value == 'pending' %}
-                  <span class="badge text-bg-light border text-muted">Expired</span>
-                {% endif %}
-              </td>
-              <td>
-                {% set quote_badge = {'pending': 'text-bg-warning', 'accepted': 'text-bg-success', 'declined': 'text-bg-secondary'}[quote.status.value] %}
-                <span class="badge {{ quote_badge }} text-capitalize">{{ quote.status.value }}</span>
-              </td>
+              <td>{{ valid_until(quote) }}</td>
+              <td>{{ status_badge(quote) }}</td>
               <td class="small">
                 {% for doc in quote_documents.get(quote.id, []) %}
                   {% if doc.file_path %}
@@ -113,7 +108,7 @@
                 <div class="d-flex gap-2 justify-content-end">
                   {% if quote.status.value != 'accepted' %}
                     <form method="post" action="{{ url_for('main.vendor_quote_accept', vendor_id=vendor.id, quote_id=quote.id) }}"
-                          data-confirm="Accept this quote? Other quotes from this vendor will be marked declined.">
+                          data-confirm="{{ 'Accept this quote? The other quotes for ' ~ quote.job.name ~ ' will be marked declined.' if quote.job else 'Accept this quote?' }}">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                       <button type="submit" class="btn btn-sm btn-outline-success">Accept</button>
                     </form>
@@ -145,6 +140,10 @@
     <div class="col-md-3">
       <label class="form-label">Description</label>
       <input type="text" class="form-control form-control-sm" name="description" maxlength="300" placeholder="e.g. Gutter cleaning, + tax">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label" for="target">For</label>
+      {{ target_select(appliances, zones, small=true) }}
     </div>
     <div class="col-auto">
       <label class="form-label">Amount</label>

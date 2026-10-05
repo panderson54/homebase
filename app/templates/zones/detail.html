@@ -185,6 +185,11 @@
       <button type="submit" class="btn btn-sm btn-primary">Log visit</button>
     </div>
   </form>
+  {% with job=zone, job_zone=zone, job_appliance=none,
+          link_url=url_for('main.zone_quote_link', zone_id=zone.id),
+          create_url=url_for('main.zone_quote_create', zone_id=zone.id) %}
+    {% include 'quotes/_job_quotes.html' %}
+  {% endwith %}
 </section>
 {% endblock %}
 

@@ -18,7 +18,8 @@ app/
                            #   only module that touches Document/DocumentLink directly
   vendor_service.py        # Resolves a vendor pick/quick-add for a service-record submission
   vendor_types_data.py     # Suggested vendor types for the select-with-"other" picker
-  vendor_quote_service.py  # Vendor quote CRUD; accepting one declines the vendor's others
+  vendor_quote_service.py  # Vendor quote CRUD + linking a quote to its job (the Appliance/
+                           #   Zone pro service it prices); accepting one declines that job's others
   context_export_service.py  # Builds the Markdown context export
   feature_request_data.py  # Agent feature request choices, field specs, agent instructions
   feature_request_service.py  # Validate/create/update/review/render agent feature requests
@@ -65,7 +66,8 @@ services or models.
 never read or modify another's data — there is no other access-control
 layer in this app. Vendors go through the equivalent
 `get_household_vendor_or_404()` (vendor quotes then via
-`get_vendor_quote_or_404(vendor, quote_id)`), paint colors through
+`get_vendor_quote_or_404(vendor, quote_id)`, or `get_household_quote_or_404()`
+when the route has no vendor in its URL), paint colors through
 `get_household_paint_color_or_404()`, feature requests through
 `get_household_feature_request_or_404()`. A `Document` isn't owned by an appliance
 directly (see `DocumentLink` in `models.py`), and a `ServiceRecord` isn't

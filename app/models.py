@@ -166,6 +166,9 @@ class Appliance(db.Model):
         'ServiceRecord', back_populates='appliance', cascade='all, delete-orphan',
         order_by='ServiceRecord.service_date.desc()',
     )
+    # No delete cascade: deleting the appliance only unlinks its quotes, which
+    # stay on their vendor's page.
+    quotes = db.relationship('VendorQuote', back_populates='appliance', order_by='VendorQuote.created_at.desc()')
 
     @property
     def category_label(self):
@@ -189,6 +192,11 @@ class Appliance(db.Model):
             return None
         baseline = self.latest_service_date or self.install_date or self.created_at.date()
         return compute_next_due(baseline, self.pro_service_interval_value, self.pro_service_interval_unit.value)
+
+    @property
+    def pro_service_vendor(self):
+        """The vendor whose linked quote was accepted for this item's professional service."""
+        return next((q.vendor for q in self.quotes if q.status == QuoteStatus.accepted), None)
 
 
 class Document(db.Model):
@@ -358,7 +366,10 @@ class Vendor(db.Model):
 
 class VendorQuote(db.Model):
     """A quote from a vendor. Scoped to a household through its vendor; any
-    attached PDF is a Document linked via DocumentLink ('vendor_quote')."""
+    attached PDF is a Document linked via DocumentLink ('vendor_quote').
+    Optionally linked to the Appliance or Zone whose professional service it
+    prices (never both) — that item is "the job" its competing quotes share.
+    The vendor page stays the quote's canonical home either way."""
     __tablename__ = 'vendor_quotes'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -368,9 +379,23 @@ class VendorQuote(db.Model):
     amount = db.Column(db.Numeric(10, 2))
     valid_until = db.Column(db.Date)
     status = db.Column(db.Enum(QuoteStatus, native_enum=False), nullable=False, default=QuoteStatus.pending)
+    appliance_id = db.Column(db.Integer, db.ForeignKey('appliances.id'), index=True)
+    zone_id = db.Column(db.Integer, db.ForeignKey('zones.id'), index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     vendor = db.relationship('Vendor', back_populates='quotes')
+    appliance = db.relationship('Appliance', back_populates='quotes')
+    zone = db.relationship('Zone', back_populates='quotes')
+
+    __table_args__ = (
+        db.CheckConstraint(
+            'appliance_id IS NULL OR zone_id IS NULL', name='ck_vendor_quote_appliance_or_zone',
+        ),
+    )
+
+    @property
+    def job(self):
+        return self.appliance or self.zone
 
     @property
     def is_expired(self):
@@ -443,6 +468,7 @@ class Zone(db.Model):
         'MaintenanceTask', back_populates='zone', cascade='all, delete-orphan',
         order_by='MaintenanceTask.title',
     )
+    quotes = db.relationship('VendorQuote', back_populates='zone', order_by='VendorQuote.created_at.desc()')
 
     @property
     def latest_service_date(self):
@@ -455,6 +481,11 @@ class Zone(db.Model):
             return None
         baseline = self.latest_service_date or self.created_at.date()
         return compute_next_due(baseline, self.pro_service_interval_value, self.pro_service_interval_unit.value)
+
+    @property
+    def pro_service_vendor(self):
+        """The vendor whose linked quote was accepted for this zone's professional service."""
+        return next((q.vendor for q in self.quotes if q.status == QuoteStatus.accepted), None)
 
 
 class FeatureRequest(db.Model):

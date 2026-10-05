@@ -1,7 +1,7 @@
 from flask import flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from app import appliance_lookup_service, db, document_service
+from app import appliance_lookup_service, db, document_service, vendor_quote_service
 from app.category_templates_data import CATEGORY_LABELS
 from app.models import APPLIANCE_SPEC_FIELDS, Appliance, ApplianceStatus, Room, Vendor
 from app.routes import main_bp
@@ -132,6 +132,7 @@ def appliance_detail(appliance_id):
     return render_template(
         'appliances/detail.html', appliance=appliance, documents=documents, primary_photo=primary_photo,
         vendors=vendors, record_document_counts=record_document_counts,
+        unlinked_quotes=vendor_quote_service.unlinked_quotes(appliance.household_id),
     )
 
 

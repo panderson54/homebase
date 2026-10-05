@@ -49,6 +49,16 @@ def get_vendor_quote_or_404(vendor, quote_id):
     return quote
 
 
+def get_household_quote_or_404(quote_id):
+    """Fetch a quote scoped (through its vendor) to the current user's household, or 404."""
+    quote = VendorQuote.query.join(Vendor).filter(
+        VendorQuote.id == quote_id, Vendor.household_id == current_user.household_id
+    ).first()
+    if quote is None:
+        abort(404)
+    return quote
+
+
 def get_household_paint_color_or_404(paint_color_id):
     """Fetch a paint color scoped to the current user's household, or 404."""
     paint_color = PaintColor.query.filter_by(

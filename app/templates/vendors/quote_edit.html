@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from 'quotes/_macros.html' import target_select %}
 {% block title %}Edit quote — {{ vendor.name }} — Homebase{% endblock %}
 
 {% block content %}
@@ -35,7 +36,13 @@
         <option value="{{ value }}" {{ 'selected' if quote.status.value == value }}>{{ value|capitalize }}</option>
       {% endfor %}
     </select>
-    <div class="form-text">Accepting this quote marks the vendor's other quotes declined.</div>
+    <div class="form-text">Accepting this quote marks the other quotes for the same job declined.</div>
+  </div>
+
+  <div class="col-md-6">
+    <label class="form-label" for="target">For</label>
+    {{ target_select(appliances, zones, quote.appliance_id, quote.zone_id) }}
+    <div class="form-text">The appliance or zone whose professional service this quote prices.</div>
   </div>
 
   <div class="col-12">

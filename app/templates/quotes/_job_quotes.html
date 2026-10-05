@@ -1,0 +1,112 @@
+{#- Quotes for an Appliance's or Zone's professional service. Expects `job`,
+    `job_appliance`, `job_zone`, `link_url`, `create_url`, `vendors`, `unlinked_quotes`. -#}
+{% from 'quotes/_macros.html' import status_badge, valid_until, job_target %}
+<h3 class="h6 mt-4">Quotes</h3>
+{% if job.pro_service_vendor %}
+  <p class="small mb-2">
+    Chosen vendor:
+    <a href="{{ url_for('main.vendor_detail', vendor_id=job.pro_service_vendor.id) }}"><strong>{{ job.pro_service_vendor.name }}</strong></a>
+  </p>
+{% endif %}
+{% if job.quotes %}
+  <div class="table-responsive mb-2">
+    <table class="table table-sm align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Vendor</th>
+          <th>Quote #</th>
+          <th class="text-end">Amount</th>
+          <th>Valid until</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for quote in job.quotes %}
+          <tr>
+            <td>
+              <a href="{{ url_for('main.vendor_detail', vendor_id=quote.vendor.id) }}">{{ quote.vendor.name }}</a>
+              {% if quote.description %}<div class="small text-muted">{{ quote.description }}</div>{% endif %}
+            </td>
+            <td>{{ quote.quote_number or '—' }}</td>
+            <td class="text-end font-tabular">{{ quote.amount|currency if quote.amount is not none else '—' }}</td>
+            <td>{{ valid_until(quote) }}</td>
+            <td>{{ status_badge(quote) }}</td>
+            <td>
+              <form method="post" action="{{ url_for('main.quote_unlink', quote_id=quote.id) }}" class="text-end"
+                    data-confirm="Unlink this quote? It stays on {{ quote.vendor.name }}'s page.">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-outline-secondary">Unlink</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <a href="{{ url_for('main.quote_compare', target=job_target(job_appliance, job_zone)) }}"
+     class="btn btn-sm btn-outline-primary mb-3">Compare quotes</a>
+{% else %}
+  <p class="text-muted small">No quotes linked yet.</p>
+{% endif %}
+
+{% if unlinked_quotes %}
+  <form method="post" action="{{ link_url }}" class="row g-2 align-items-end mb-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="col-md-6">
+      <label class="form-label">Link an existing quote</label>
+      <select class="form-select form-select-sm" name="quote_id" required>
+        <option value="">Select…</option>
+        {% for quote in unlinked_quotes %}
+          <option value="{{ quote.id }}">
+            {{ quote.vendor.name }} — {{ '#' ~ quote.quote_number if quote.quote_number else (quote.description or 'Quote') }}
+            {%- if quote.amount is not none %} — {{ quote.amount|currency }}{% endif %} ({{ quote.status.value }})
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-sm btn-outline-primary">Link</button>
+    </div>
+  </form>
+{% endif %}
+
+{% if vendors %}
+  <form method="post" action="{{ create_url }}" enctype="multipart/form-data" class="row g-2 align-items-end">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="col-md-3">
+      <label class="form-label">New quote from</label>
+      <select class="form-select form-select-sm" name="vendor_id" required>
+        <option value="">Select vendor…</option>
+        {% for vendor in vendors %}
+          <option value="{{ vendor.id }}">{{ vendor.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto">
+      <label class="form-label">Quote #</label>
+      <input type="text" class="form-control form-control-sm" name="quote_number" maxlength="80" style="width: 8rem">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Description</label>
+      <input type="text" class="form-control form-control-sm" name="description" maxlength="300" placeholder="e.g. + tax">
+    </div>
+    <div class="col-auto">
+      <label class="form-label">Amount</label>
+      <input type="number" step="0.01" min="0" class="form-control form-control-sm" name="amount" style="width: 7rem">
+    </div>
+    <div class="col-auto">
+      <label class="form-label">Valid until</label>
+      <input type="date" class="form-control form-control-sm" name="valid_until">
+    </div>
+    <div class="col-auto">
+      <label class="form-label">PDF (optional)</label>
+      <input type="file" class="form-control form-control-sm" name="file" accept=".pdf,.png,.jpg,.jpeg,.webp">
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-sm btn-primary">Add quote</button>
+    </div>
+  </form>
+{% else %}
+  <p class="text-muted small">Add a vendor to record quotes for this item.</p>
+{% endif %}
