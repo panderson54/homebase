@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% set fr = feature_request %}
+{% block title %}{{ 'Edit' if fr else 'New' }} feature request — Homebase{% endblock %}
+{% block head %}<meta name="robots" content="noindex, nofollow">{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('main.agent_request_detail', feature_request_id=fr.id) if fr else url_for('main.agent_request_list') }}"
+   class="text-muted small d-inline-block mb-3">&larr; Back</a>
+<h1 class="h3 mb-3">{{ 'Edit feature request #%d'|format(fr.id) if fr else 'New feature request' }}</h1>
+
+{% set instructions_open = not fr %}
+{% include 'agent_requests/_instructions.html' %}
+
+{% if errors %}
+  <div class="alert alert-danger" role="alert" id="form-errors">
+    <strong>Please fix the following and resubmit:</strong>
+    <ul class="mb-0">{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>
+  </div>
+{% endif %}
+
+<form method="post" class="row g-3">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  {% for name, label, kind, required, max_length, help in fields %}
+    {% set wide = kind == 'textarea' or name in ('title', 'summary') %}
+    <div class="{{ 'col-12' if wide else 'col-md-6' }}">
+      <label class="form-label" for="{{ name }}">{{ label }}{% if required %} <span class="text-danger">*</span>{% endif %}</label>
+      {% if kind.startswith('select:') %}
+        <select class="form-select" id="{{ name }}" name="{{ name }}" {% if required %}required{% endif %}>
+          <option value="">— choose —</option>
+          {% for value, option_label in choices[kind.split(':', 1)[1]].items() %}
+            <option value="{{ value }}" {% if values.get(name) == value %}selected{% endif %}>{{ option_label }}</option>
+          {% endfor %}
+        </select>
+      {% elif kind == 'textarea' %}
+        <textarea class="form-control" id="{{ name }}" name="{{ name }}" rows="{{ 5 if name == 'acceptance_criteria' else 3 }}"
+                  {% if required %}required{% endif %}>{{ values.get(name, '') }}</textarea>
+      {% else %}
+        <input type="{{ 'url' if kind == 'url' else 'text' }}" class="form-control" id="{{ name }}" name="{{ name }}"
+               value="{{ values.get(name, '') }}" {% if max_length %}maxlength="{{ max_length }}"{% endif %}
+               {% if required %}required{% endif %}>
+      {% endif %}
+      {% if help %}<div class="form-text">{{ help }}</div>{% endif %}
+    </div>
+  {% endfor %}
+
+  <div class="col-12">
+    <button type="submit" class="btn btn-primary">{{ 'Save changes' if fr else 'Submit request' }}</button>
+    {% if fr %}<span class="form-text ms-2">Editing never changes the request's status.</span>{% endif %}
+  </div>
+</form>
+{% endblock %}

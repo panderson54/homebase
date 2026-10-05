@@ -4,7 +4,7 @@ import re
 from flask import abort
 from flask_login import current_user
 
-from app.models import Appliance, FrequencyUnit, PaintColor, Room, Vendor, Zone
+from app.models import Appliance, FeatureRequest, FrequencyUnit, PaintColor, Room, Vendor, Zone
 
 _HEX_COLOR_RE = re.compile(r'^#[0-9A-Fa-f]{6}$')
 
@@ -69,6 +69,16 @@ def get_household_zone_or_404(zone_id):
     if zone is None:
         abort(404)
     return zone
+
+
+def get_household_feature_request_or_404(feature_request_id):
+    """Fetch a feature request scoped to the current user's household, or 404."""
+    feature_request = FeatureRequest.query.filter_by(
+        id=feature_request_id, household_id=current_user.household_id
+    ).first()
+    if feature_request is None:
+        abort(404)
+    return feature_request
 
 
 def parse_service_target(value, household_id):

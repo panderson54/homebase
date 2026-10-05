@@ -88,6 +88,8 @@ app/
   vendor_types_data.py        # Suggested vendor types (HVAC, plumbing, etc.)
   service_record_service.py   # Creates a ServiceRecord for an appliance or zone
   context_export_service.py   # Builds the Markdown context export
+  feature_request_data.py     # Agent feature request choices, fields, instructions
+  feature_request_service.py  # Validates/reviews/renders agent feature requests
   cli.py                      # `flask create-user`, `flask seed-templates`
   mcp_server.py               # MCP server: log service visits via an LLM client
   routes/                     # Blueprint, split by domain
@@ -119,6 +121,21 @@ appliance or zone, reusing a vendor by name or creating a stub for a new
 one). It never creates appliances, zones, or rooms — those stay a manual
 step in the web app. Like `flask create-user`, it operates on the single
 household this instance was set up for, so no separate login is needed.
+
+It also exposes feature-request tools (see below): `feature_request_instructions`,
+`list_feature_requests`, `get_feature_request`, `submit_feature_request`, and
+`update_feature_request`. There's deliberately no tool to approve or deny.
+
+## Agent feature requests
+
+`/agent-request` is an unlisted page (no nav link, `noindex`) where AI agents
+using the site file feature requests when they notice something missing. The
+homeowner reviews each one (Unread → Approved / Denied → Implemented) and can
+edit it. Instructions for agents are shown on the page itself (and returned by
+the `feature_request_instructions` MCP tool). Each request is also available as
+Markdown at `/agent-request/<id>.md` for a follow-on agent to build from.
+Agents log in as the normal user, so nothing technically stops them from
+approving their own requests. The instructions tell them not to.
 
 ## Deployment
 

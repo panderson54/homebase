@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block title %}Agent feature requests — Homebase{% endblock %}
+{% block head %}<meta name="robots" content="noindex, nofollow">{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Agent feature requests</h1>
+  <a href="{{ url_for('main.agent_request_new') }}" class="btn btn-primary btn-sm">+ New request</a>
+</div>
+
+{% include 'agent_requests/_instructions.html' %}
+
+<ul class="nav nav-tabs mb-3">
+  {% for key, label in status_labels.items() %}
+    <li class="nav-item">
+      <a class="nav-link {% if status == key %}active{% endif %}" href="{{ url_for('main.agent_request_list', status=key) }}">
+        {{ label }} <span class="badge text-bg-light border">{{ counts[key] }}</span>
+      </a>
+    </li>
+  {% endfor %}
+  <li class="nav-item">
+    <a class="nav-link {% if status is none %}active{% endif %}" href="{{ url_for('main.agent_request_list', status='all') }}">
+      All <span class="badge text-bg-light border">{{ counts.values()|sum }}</span>
+    </a>
+  </li>
+</ul>
+
+{% if feature_requests %}
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Request</th>
+          <th>Status</th>
+          <th>Type</th>
+          <th>Area</th>
+          <th>Priority</th>
+          <th>Submitted</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for fr in feature_requests %}
+        <tr class="cursor-pointer" onclick="window.location='{{ url_for('main.agent_request_detail', feature_request_id=fr.id) }}'">
+          <td class="text-muted">{{ fr.id }}</td>
+          <td>
+            <a href="{{ url_for('main.agent_request_detail', feature_request_id=fr.id) }}" class="{% if fr.status.value == 'unread' %}fw-semibold{% endif %}">{{ fr.title }}</a>
+            <div class="small text-muted">{{ fr.summary }}</div>
+          </td>
+          <td>{% include 'agent_requests/_status_badge.html' %}</td>
+          <td class="small">{{ fr.request_type_label }}</td>
+          <td class="small">{{ fr.area_label }}</td>
+          <td class="small">{{ fr.priority_label }}</td>
+          <td class="small text-muted">{{ fr.submitted_by }}<br>{{ fr.created_at.strftime('%Y-%m-%d') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p class="text-muted">No {{ status_labels[status]|lower if status else '' }} requests.</p>
+{% endif %}
+{% endblock %}

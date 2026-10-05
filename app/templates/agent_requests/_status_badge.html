@@ -1,0 +1,2 @@
+{% set badge_class = {'unread': 'text-bg-warning', 'approved': 'text-bg-success', 'denied': 'text-bg-secondary', 'implemented': 'text-bg-primary'}[fr.status.value] %}
+<span class="badge {{ badge_class }}">{{ fr.status_label }}</span>
