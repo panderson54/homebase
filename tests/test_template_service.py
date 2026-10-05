@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 from app.models import Appliance, Consumable, FrequencyUnit, MaintenanceTask
 from app.template_service import apply_category_template
 
@@ -14,6 +16,8 @@ class TestApplyCategoryTemplate:
         tasks = MaintenanceTask.query.filter_by(appliance_id=appliance.id).all()
         consumables = Consumable.query.filter_by(appliance_id=appliance.id).all()
         assert [t.title for t in tasks] == ['Check filter']
+        assert tasks[0].last_completed_at == date.today()
+        assert tasks[0].next_due_at == date.today() + timedelta(days=30)
         assert [c.name for c in consumables] == ['Furnace filter']
         assert appliance.pro_service_interval_value == 1
         assert appliance.pro_service_interval_unit == FrequencyUnit.years

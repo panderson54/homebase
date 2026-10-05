@@ -120,7 +120,18 @@
               {% if task.description %}<div class="small text-muted">{{ task.description }}</div>{% endif %}
               <div class="small">
                 {% if task.next_due_at %}Next due {{ task.next_due_at|datefmt }}{% else %}Not yet completed{% endif %}
+                {% if task.last_completed_at %}<span class="text-muted">· last done {{ task.last_completed_at|datefmt }}</span>{% endif %}
               </div>
+              <details class="small mt-1">
+                <summary class="text-muted">Change last-done date</summary>
+                <form method="post" action="{{ url_for('main.maintenance_task_set_last_completed', task_id=task.id) }}"
+                      class="d-flex gap-2 mt-1">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="date" class="form-control form-control-sm" name="last_completed_at" required
+                         value="{{ task.last_completed_at.isoformat() if task.last_completed_at else '' }}" style="width: 10rem">
+                  <button type="submit" class="btn btn-sm btn-outline-secondary">Save</button>
+                </form>
+              </details>
             </div>
             <div class="d-flex gap-2">
               <form method="post" action="{{ url_for('main.maintenance_task_complete', task_id=task.id) }}">
