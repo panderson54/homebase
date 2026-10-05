@@ -67,6 +67,111 @@
   </section>
 {% endif %}
 
+<!-- Quotes -->
+<section class="mb-5">
+  <h2 class="h5">Quotes</h2>
+  {% if vendor.quotes %}
+    <div class="table-responsive mb-3">
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Quote #</th>
+            <th>Description</th>
+            <th class="text-end">Amount</th>
+            <th>Valid until</th>
+            <th>Status</th>
+            <th>Attachments</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for quote in vendor.quotes %}
+            <tr>
+              <td>{{ quote.quote_number or '—' }}</td>
+              <td class="small">{{ quote.description or '' }}</td>
+              <td class="text-end font-tabular">{{ quote.amount|currency if quote.amount is not none else '—' }}</td>
+              <td>
+                {{ quote.valid_until|datefmt if quote.valid_until else '—' }}
+                {% if quote.is_expired and quote.status.value == 'pending' %}
+                  <span class="badge text-bg-light border text-muted">Expired</span>
+                {% endif %}
+              </td>
+              <td>
+                {% set quote_badge = {'pending': 'text-bg-warning', 'accepted': 'text-bg-success', 'declined': 'text-bg-secondary'}[quote.status.value] %}
+                <span class="badge {{ quote_badge }} text-capitalize">{{ quote.status.value }}</span>
+              </td>
+              <td class="small">
+                {% for doc in quote_documents.get(quote.id, []) %}
+                  {% if doc.file_path %}
+                    <a href="{{ url_for('main.document_file', document_id=doc.id) }}" target="_blank">{{ doc.original_filename }}</a>
+                  {% else %}
+                    <a href="{{ doc.external_url }}" target="_blank" rel="noopener">Link</a>
+                  {% endif %}{{ ', ' if not loop.last }}
+                {% endfor %}
+              </td>
+              <td>
+                <div class="d-flex gap-2 justify-content-end">
+                  {% if quote.status.value != 'accepted' %}
+                    <form method="post" action="{{ url_for('main.vendor_quote_accept', vendor_id=vendor.id, quote_id=quote.id) }}"
+                          data-confirm="Accept this quote? Other quotes from this vendor will be marked declined.">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="btn btn-sm btn-outline-success">Accept</button>
+                    </form>
+                  {% endif %}
+                  <a href="{{ url_for('main.vendor_quote_edit', vendor_id=vendor.id, quote_id=quote.id) }}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                  <form method="post" action="{{ url_for('main.vendor_quote_delete', vendor_id=vendor.id, quote_id=quote.id) }}"
+                        data-confirm="Delete this quote?">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="text-muted">No quotes yet.</p>
+  {% endif %}
+
+  <form method="post" action="{{ url_for('main.vendor_quote_create', vendor_id=vendor.id) }}"
+        enctype="multipart/form-data" class="row g-2 align-items-end">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="col-auto">
+      <label class="form-label">Quote #</label>
+      <input type="text" class="form-control form-control-sm" name="quote_number" maxlength="80" style="width: 8rem">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Description</label>
+      <input type="text" class="form-control form-control-sm" name="description" maxlength="300" placeholder="e.g. Gutter cleaning, + tax">
+    </div>
+    <div class="col-auto">
+      <label class="form-label">Amount</label>
+      <input type="number" step="0.01" min="0" class="form-control form-control-sm" name="amount" style="width: 7rem">
+    </div>
+    <div class="col-auto">
+      <label class="form-label">Valid until</label>
+      <input type="date" class="form-control form-control-sm" name="valid_until">
+    </div>
+    <div class="col-auto">
+      <label class="form-label">Status</label>
+      <select class="form-select form-select-sm" name="status">
+        <option value="pending" selected>Pending</option>
+        <option value="accepted">Accepted</option>
+        <option value="declined">Declined</option>
+      </select>
+    </div>
+    <div class="col-auto">
+      <label class="form-label">PDF (optional)</label>
+      <input type="file" class="form-control form-control-sm" name="file" accept=".pdf,.png,.jpg,.jpeg,.webp">
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-sm btn-primary">Add quote</button>
+    </div>
+  </form>
+</section>
+
 <!-- Documents -->
 <section class="mb-5">
   <h2 class="h5">Documents</h2>
