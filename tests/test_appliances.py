@@ -117,6 +117,51 @@ class TestApplianceScoping:
         assert resp.status_code == 302
 
 
+class TestApplianceDetailsSection:
+    def test_shows_identity_fields(self, logged_in_client, db, household):
+        from datetime import date
+        from app.models import Room
+        room = Room(household_id=household.id, name='Basement')
+        db.session.add(room)
+        db.session.flush()
+        appliance = Appliance(
+            household_id=household.id, name='Furnace', category='furnace', make='Carrier',
+            model_number='59SC5A060', serial_number='SN-12345', manufacture_year=2019, room_id=room.id,
+            install_date=date(2019, 6, 1), purchase_date=date(2019, 5, 20),
+            pro_service_interval_value=1, pro_service_interval_unit=FrequencyUnit.years,
+        )
+        db.session.add(appliance)
+        db.session.commit()
+
+        html = logged_in_client.get(f'/appliances/{appliance.id}').get_data(as_text=True)
+        details = html[html.index('Appliance details'):html.index('<h2 class="h5">Documents</h2>')]
+        for expected in ('Carrier', '59SC5A060', 'SN-12345', '2019', 'Basement',
+                         'Jun 1, 2019', 'May 20, 2019', 'Every 1 year<'):
+            assert expected in details
+
+    def test_empty_fields_render_placeholder(self, logged_in_client, db, household):
+        appliance = Appliance(household_id=household.id, name='Dryer', category='dryer')
+        db.session.add(appliance)
+        db.session.commit()
+
+        resp = logged_in_client.get(f'/appliances/{appliance.id}')
+        assert resp.status_code == 200
+        html = resp.get_data(as_text=True)
+        details = html[html.index('Appliance details'):html.index('<h2 class="h5">Documents</h2>')]
+        assert details.count('—') == 8
+
+    def test_existing_sections_remain_in_order(self, logged_in_client, db, household):
+        appliance = Appliance(household_id=household.id, name='Dryer', category='dryer')
+        db.session.add(appliance)
+        db.session.commit()
+
+        html = logged_in_client.get(f'/appliances/{appliance.id}').get_data(as_text=True)
+        positions = [html.index(heading) for heading in (
+            'Appliance details', '>Documents<', '>Homeowner maintenance<', '>Consumables<', '>Professional service<',
+        )]
+        assert positions == sorted(positions)
+
+
 class TestApplianceListAndArchive:
     def test_list_shows_active_only_by_default(self, logged_in_client, db, household):
         active = Appliance(household_id=household.id, name='Furnace', category='furnace')
