@@ -245,6 +245,66 @@ class TestApplianceLookup:
         assert appliance.manufacture_year == 2018
 
 
+class TestApplianceSpecs:
+    def test_create_with_spec_fields(self, logged_in_client, user):
+        resp = logged_in_client.post('/appliances/new', data={
+            'name': 'Dryer', 'category': 'dryer', 'capacity': ' 7.0 cu ft ',
+            'electrical_specs': '240V / 30A', 'dimensions': '38 x 29 x 28 in', 'notes': 'Vent cleaned 2025',
+        })
+        assert resp.status_code == 302
+        appliance = Appliance.query.filter_by(household_id=user.household_id).one()
+        assert appliance.capacity == '7.0 cu ft'
+        assert appliance.electrical_specs == '240V / 30A'
+        assert appliance.weight is None
+        assert appliance.notes == 'Vent cleaned 2025'
+
+    def test_create_with_name_only_leaves_specs_empty(self, logged_in_client, user):
+        resp = logged_in_client.post('/appliances/new', data={'name': 'Dehumidifier', 'category': 'dehumidifier'})
+        assert resp.status_code == 302
+        appliance = Appliance.query.filter_by(household_id=user.household_id).one()
+        assert appliance.specs == []
+
+    def test_edit_updates_and_clears_specs_preserving_notes(self, logged_in_client, db, household):
+        appliance = Appliance(
+            household_id=household.id, name='Fridge', category='refrigerator', weight='300 lb', notes='Old notes',
+        )
+        db.session.add(appliance)
+        db.session.commit()
+
+        resp = logged_in_client.post(f'/appliances/{appliance.id}/edit', data={
+            'name': 'Fridge', 'category': 'refrigerator', 'refrigerant': 'R-600a', 'weight': '  ',
+            'notes': 'Old notes',
+        })
+        assert resp.status_code == 302
+        db.session.refresh(appliance)
+        assert appliance.refrigerant == 'R-600a'
+        assert appliance.weight is None
+        assert appliance.notes == 'Old notes'
+
+    def test_edit_form_prefills_specs(self, logged_in_client, db, household):
+        appliance = Appliance(household_id=household.id, name='Fridge', category='refrigerator', capacity='25 cu ft')
+        db.session.add(appliance)
+        db.session.commit()
+
+        resp = logged_in_client.get(f'/appliances/{appliance.id}/edit')
+        assert resp.status_code == 200
+        assert b'value="25 cu ft"' in resp.data
+
+    def test_detail_shows_spec_section_only_when_specs_exist(self, logged_in_client, db, household):
+        with_specs = Appliance(
+            household_id=household.id, name='Fridge', category='refrigerator', warranty='10 yr compressor',
+        )
+        without_specs = Appliance(household_id=household.id, name='Washer', category='washer')
+        db.session.add_all([with_specs, without_specs])
+        db.session.commit()
+
+        resp = logged_in_client.get(f'/appliances/{with_specs.id}')
+        assert b'Specifications' in resp.data
+        assert b'10 yr compressor' in resp.data
+        resp = logged_in_client.get(f'/appliances/{without_specs.id}')
+        assert b'Specifications' not in resp.data
+
+
 class TestApplianceProfilePhoto:
     def test_upload_sets_primary_photo(self, logged_in_client, db, household):
         appliance = Appliance(household_id=household.id, name='Furnace', category='furnace')

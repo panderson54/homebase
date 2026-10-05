@@ -50,6 +50,19 @@ class TestBuildContextMarkdown:
         assert '## Vendors' in markdown
         assert '[maintenance]' in markdown
 
+    def test_appliance_specs_are_exported(self, app, db, household):
+        db.session.add(Appliance(
+            household_id=household.id, name='Dryer', category='dryer', capacity='7.0 cu ft',
+            service_contact='Sears 800-469-4663',
+        ))
+        db.session.commit()
+
+        markdown = build_context_markdown(household)
+
+        assert '- Capacity: 7.0 cu ft' in markdown
+        assert '- Service contact: Sears 800-469-4663' in markdown
+        assert 'Weight' not in markdown
+
     def test_archived_appliances_get_their_own_section(self, app, db, household):
         active = Appliance(household_id=household.id, name='Fridge', category='refrigerator')
         archived = Appliance(

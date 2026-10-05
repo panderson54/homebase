@@ -118,6 +118,18 @@ class User(UserMixin, db.Model):
         return check_password_hash(self.password_hash, password)
 
 
+# (attribute, label) for the optional free-text spec fields on Appliance, in display order.
+APPLIANCE_SPEC_FIELDS = (
+    ('capacity', 'Capacity'),
+    ('electrical_specs', 'Electrical'),
+    ('dimensions', 'Dimensions (H x W x D)'),
+    ('weight', 'Weight'),
+    ('refrigerant', 'Refrigerant'),
+    ('warranty', 'Warranty'),
+    ('service_contact', 'Service contact'),
+)
+
+
 class Appliance(db.Model):
     __tablename__ = 'appliances'
 
@@ -136,6 +148,13 @@ class Appliance(db.Model):
         db.Enum(ApplianceStatus, native_enum=False), nullable=False, default=ApplianceStatus.active
     )
     notes = db.Column(db.Text)
+    capacity = db.Column(db.String(200))
+    electrical_specs = db.Column(db.String(200))
+    dimensions = db.Column(db.String(200))
+    weight = db.Column(db.String(200))
+    refrigerant = db.Column(db.String(200))
+    warranty = db.Column(db.String(200))
+    service_contact = db.Column(db.String(200))
     pro_service_interval_value = db.Column(db.Integer)
     pro_service_interval_unit = db.Column(db.Enum(FrequencyUnit, native_enum=False))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -163,6 +182,11 @@ class Appliance(db.Model):
     @property
     def latest_service_date(self):
         return self.service_records[0].service_date if self.service_records else None
+
+    @property
+    def specs(self):
+        """(label, value) pairs for the spec fields that are filled in."""
+        return [(label, getattr(self, attr)) for attr, label in APPLIANCE_SPEC_FIELDS if getattr(self, attr)]
 
     @property
     def pro_service_next_due(self):

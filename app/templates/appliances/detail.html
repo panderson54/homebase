@@ -71,6 +71,19 @@
     </dl>
   </div>
 </section>
+{% if appliance.specs %}
+<section class="card mb-4" aria-labelledby="appliance-specs-heading">
+  <div class="card-body">
+    <h2 class="h6 mb-3" id="appliance-specs-heading">Specifications</h2>
+    <dl class="row mb-0 small">
+      {% for label, value in appliance.specs %}
+        <dt class="col-sm-4 col-lg-3 text-muted fw-normal">{{ label }}</dt>
+        <dd class="col-sm-8 col-lg-9 text-break{% if loop.last %} mb-0{% endif %}">{{ value }}</dd>
+      {% endfor %}
+    </dl>
+  </div>
+</section>
+{% endif %}
 {% if appliance.notes %}<p>{{ appliance.notes }}</p>{% endif %}
 
 <!-- Documents -->
