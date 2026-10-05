@@ -42,14 +42,35 @@
   </div>
 </div>
 
-<div class="row g-2 mb-4 text-muted small">
-  {% if appliance.make %}<div class="col-auto">Make: {{ appliance.make }}</div>{% endif %}
-  {% if appliance.model_number %}<div class="col-auto">Model: {{ appliance.model_number }}</div>{% endif %}
-  {% if appliance.serial_number %}<div class="col-auto">Serial: {{ appliance.serial_number }}</div>{% endif %}
-  {% if appliance.manufacture_year %}<div class="col-auto">Manufactured: {{ appliance.manufacture_year }}</div>{% endif %}
-  {% if appliance.install_date %}<div class="col-auto">Installed: {{ appliance.install_date|datefmt }}</div>{% endif %}
-  {% if appliance.purchase_date %}<div class="col-auto">Purchased: {{ appliance.purchase_date|datefmt }}</div>{% endif %}
-</div>
+<!-- Appliance details -->
+<section class="card mb-4" aria-labelledby="appliance-details-heading">
+  <div class="card-body">
+    <h2 class="h6 mb-3" id="appliance-details-heading">Appliance details</h2>
+    <dl class="row mb-0 small">
+      {% set room_link %}{% if appliance.room %}<a href="{{ url_for('main.home', tab='rooms') }}">{{ appliance.room.name }}</a>{% endif %}{% endset %}
+      {% for label, value in [
+        ('Name', appliance.name),
+        ('Category', appliance.category_label),
+        ('Make', appliance.make),
+        ('Model number', appliance.model_number),
+        ('Serial number', appliance.serial_number),
+        ('Manufacture year', appliance.manufacture_year),
+        ('Room/location', room_link),
+        ('Install date', appliance.install_date|datefmt if appliance.install_date),
+        ('Purchase date', appliance.purchase_date|datefmt if appliance.purchase_date),
+        ('Professional service interval',
+          'Every %s %s'|format(
+            appliance.pro_service_interval_value,
+            appliance.pro_service_interval_unit.value[:-1] if appliance.pro_service_interval_value == 1
+            else appliance.pro_service_interval_unit.value)
+          if appliance.pro_service_interval_value and appliance.pro_service_interval_unit),
+      ] %}
+        <dt class="col-sm-4 col-lg-3 text-muted fw-normal">{{ label }}</dt>
+        <dd class="col-sm-8 col-lg-9 text-break{% if loop.last %} mb-0{% endif %}">{{ value or '—' }}</dd>
+      {% endfor %}
+    </dl>
+  </div>
+</section>
 {% if appliance.notes %}<p>{{ appliance.notes }}</p>{% endif %}
 
 <!-- Documents -->
