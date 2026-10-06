@@ -15,6 +15,22 @@
   </div>
 </div>
 
+{% if zones %}
+  <form method="get" class="row g-2 align-items-center mb-3">
+    {% if show_archived %}<input type="hidden" name="archived" value="1">{% endif %}
+    <div class="col-auto"><label class="col-form-label" for="zone_filter">Zone</label></div>
+    <div class="col-auto">
+      <select class="form-select form-select-sm" id="zone_filter" name="zone" onchange="this.form.submit()">
+        <option value="">All zones</option>
+        {% for zone in zones %}
+          <option value="{{ zone.id }}" {{ 'selected' if zone_filter and zone_filter.id == zone.id }}>{{ zone.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <noscript><div class="col-auto"><button class="btn btn-sm btn-outline-secondary">Filter</button></div></noscript>
+  </form>
+{% endif %}
+
 {% if appliances %}
   <div class="table-responsive">
     <table class="table table-hover align-middle">
@@ -24,6 +40,7 @@
           <th>Category</th>
           <th>Make / model</th>
           <th>Room</th>
+          <th>Zone</th>
         </tr>
       </thead>
       <tbody>
@@ -33,6 +50,7 @@
           <td>{{ appliance.category_label }}</td>
           <td>{{ appliance.make or '' }} {{ appliance.model_number or '' }}</td>
           <td>{{ appliance.room.name if appliance.room else '' }}</td>
+          <td>{{ appliance.zone.name if appliance.zone else '' }}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -40,7 +58,7 @@
   </div>
 {% else %}
   <p class="text-muted">
-    {{ 'No archived appliances.' if show_archived else 'No appliances yet — add your first one to get started.' }}
+    {{ 'No appliances in this zone.' if zone_filter else 'No archived appliances.' if show_archived else 'No appliances yet — add your first one to get started.' }}
   </p>
 {% endif %}
 {% endblock %}

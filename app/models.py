@@ -138,6 +138,7 @@ class Appliance(db.Model):
     model_number = db.Column(db.String(120))
     serial_number = db.Column(db.String(120))
     room_id = db.Column(db.Integer, db.ForeignKey('rooms.id'))
+    zone_id = db.Column(db.Integer, db.ForeignKey('zones.id'))
     manufacture_year = db.Column(db.Integer)
     install_date = db.Column(db.Date)
     purchase_date = db.Column(db.Date)
@@ -155,6 +156,7 @@ class Appliance(db.Model):
 
     household = db.relationship('Household', back_populates='appliances')
     room = db.relationship('Room', back_populates='appliances')
+    zone = db.relationship('Zone', back_populates='appliances')
     maintenance_tasks = db.relationship(
         'MaintenanceTask', back_populates='appliance', cascade='all, delete-orphan',
         order_by='MaintenanceTask.title',
@@ -469,6 +471,8 @@ class Zone(db.Model):
         order_by='MaintenanceTask.title',
     )
     quotes = db.relationship('VendorQuote', back_populates='zone', order_by='VendorQuote.created_at.desc()')
+    # No delete cascade: deleting a zone only unassigns its appliances.
+    appliances = db.relationship('Appliance', back_populates='zone', order_by='Appliance.name')
 
     @property
     def latest_service_date(self):

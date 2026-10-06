@@ -148,7 +148,7 @@ class TestApplianceDetailsSection:
         assert resp.status_code == 200
         html = resp.get_data(as_text=True)
         details = html[html.index('Appliance details'):html.index('<h2 class="h5">Documents</h2>')]
-        assert details.count('—') == 8
+        assert details.count('—') == 9
 
     def test_existing_sections_remain_in_order(self, logged_in_client, db, household):
         appliance = Appliance(household_id=household.id, name='Dryer', category='dryer')
@@ -332,3 +332,100 @@ class TestApplianceProfilePhoto:
             'photo': (_make_png_bytes(), 'furnace.png'),
         }, content_type='multipart/form-data')
         assert resp.status_code == 404
+
+
+class TestApplianceZone:
+    def _zone(self, db, household, name='Home Network'):
+        from app.models import Zone
+        zone = Zone(household_id=household.id, name=name)
+        db.session.add(zone)
+        db.session.commit()
+        return zone
+
+    def _appliance(self, db, household, name='Router', **kwargs):
+        appliance = Appliance(household_id=household.id, name=name, category='router', **kwargs)
+        db.session.add(appliance)
+        db.session.commit()
+        return appliance
+
+    def test_form_offers_zone_picker(self, logged_in_client, db, household):
+        self._zone(db, household)
+        for url in ('/appliances/new', f'/appliances/{self._appliance(db, household).id}/edit'):
+            html = logged_in_client.get(url).get_data(as_text=True)
+            assert 'name="zone_id"' in html
+            assert 'Home Network' in html
+
+    def test_create_with_room_and_zone_only_room_only_zone_or_neither(self, logged_in_client, db, household):
+        from app.models import Room
+        zone = self._zone(db, household)
+        room = Room(household_id=household.id, name='Office')
+        db.session.add(room)
+        db.session.commit()
+        cases = {
+            'both': (room.id, zone.id), 'room only': (room.id, None),
+            'zone only': (None, zone.id), 'neither': (None, None),
+        }
+        for name, (room_id, zone_id) in cases.items():
+            resp = logged_in_client.post('/appliances/new', data={
+                'name': name, 'category': 'router',
+                'room_id': room_id or '', 'zone_id': zone_id or '',
+            })
+            assert resp.status_code == 302
+            appliance = Appliance.query.filter_by(name=name).one()
+            assert (appliance.room_id, appliance.zone_id) == (room_id, zone_id)
+
+    def test_edit_sets_and_clears_zone(self, logged_in_client, db, household):
+        zone = self._zone(db, household)
+        appliance = self._appliance(db, household)
+        data = {'name': 'Router', 'category': 'router'}
+        logged_in_client.post(f'/appliances/{appliance.id}/edit', data={**data, 'zone_id': zone.id})
+        assert db.session.get(Appliance, appliance.id).zone_id == zone.id
+        logged_in_client.post(f'/appliances/{appliance.id}/edit', data={**data, 'zone_id': ''})
+        assert db.session.get(Appliance, appliance.id).zone_id is None
+
+    def test_other_households_zone_is_ignored(self, logged_in_client, db):
+        other = Household(name='Other')
+        db.session.add(other)
+        db.session.commit()
+        foreign_zone = self._zone(db, other, 'Foreign')
+        for zone_id in (foreign_zone.id, 'abc', '99999'):
+            logged_in_client.post('/appliances/new', data={'name': 'X', 'category': 'router', 'zone_id': zone_id})
+        assert all(a.zone_id is None for a in Appliance.query.filter_by(name='X'))
+        assert Appliance.query.filter_by(name='X').count() == 3
+
+    def test_detail_shows_zone(self, logged_in_client, db, household):
+        zone = self._zone(db, household)
+        appliance = self._appliance(db, household, zone_id=zone.id)
+        html = logged_in_client.get(f'/appliances/{appliance.id}').get_data(as_text=True)
+        assert f'/zones/{zone.id}' in html
+        assert 'Home Network' in html
+
+    def test_list_shows_zone_and_filters_by_it(self, logged_in_client, db, household):
+        zone = self._zone(db, household)
+        self._appliance(db, household, 'Mesh Unit', zone_id=zone.id)
+        self._appliance(db, household, 'Furnace')
+        html = logged_in_client.get('/appliances').get_data(as_text=True)
+        assert 'Mesh Unit' in html and 'Furnace' in html
+        assert '<td>Home Network</td>' in html
+        filtered = logged_in_client.get(f'/appliances?zone={zone.id}').get_data(as_text=True)
+        assert 'Mesh Unit' in filtered and 'Furnace' not in filtered
+
+    def test_list_ignores_unknown_zone_filter(self, logged_in_client, db, household):
+        self._appliance(db, household, 'Furnace')
+        html = logged_in_client.get('/appliances?zone=99999').get_data(as_text=True)
+        assert 'Furnace' in html
+
+    def test_room_only_appliance_unchanged(self, logged_in_client, db, household):
+        from app.models import Room
+        room = Room(household_id=household.id, name='Basement')
+        db.session.add(room)
+        db.session.commit()
+        appliance = self._appliance(db, household, room_id=room.id)
+        assert appliance.zone is None
+        assert logged_in_client.get(f'/appliances/{appliance.id}').status_code == 200
+
+    def test_deleting_zone_unassigns_appliances(self, logged_in_client, db, household):
+        zone = self._zone(db, household)
+        appliance = self._appliance(db, household, zone_id=zone.id)
+        logged_in_client.post(f'/zones/{zone.id}/delete')
+        assert db.session.get(Appliance, appliance.id).zone_id is None

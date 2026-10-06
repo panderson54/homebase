@@ -156,3 +156,12 @@ def parse_pro_service_interval(form):
     if not value or not unit:
         return None, None
     return int(value), FrequencyUnit(unit)
+
+
+def parse_household_zone_id(form, household_id):
+    """The posted zone_id if it names a zone in this household, else None."""
+    zone_id = form.get('zone_id', '').strip()
+    if not zone_id.isdigit():
+        return None
+    zone = Zone.query.filter_by(id=int(zone_id), household_id=household_id).first()
+    return zone.id if zone else None

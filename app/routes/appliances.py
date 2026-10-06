@@ -3,9 +3,11 @@ from flask_login import current_user, login_required
 
 from app import appliance_lookup_service, db, document_service, vendor_quote_service
 from app.category_templates_data import CATEGORY_LABELS
-from app.models import APPLIANCE_SPEC_FIELDS, Appliance, ApplianceStatus, Room, Vendor
+from app.models import APPLIANCE_SPEC_FIELDS, Appliance, ApplianceStatus, Room, Vendor, Zone
 from app.routes import main_bp
-from app.routes.helpers import get_household_appliance_or_404, parse_date, parse_pro_service_interval, slugify
+from app.routes.helpers import (
+    get_household_appliance_or_404, parse_date, parse_household_zone_id, parse_pro_service_interval, slugify,
+)
 from app.template_service import apply_category_template
 
 _LOOKUP_IMAGE_MEDIA_TYPES = {
@@ -19,6 +21,10 @@ def _parse_room_id(form, household_id):
         return None
     room = Room.query.filter_by(id=room_id, household_id=household_id).first()
     return room.id if room else None
+
+
+def _household_zones(household_id):
+    return Zone.query.filter_by(household_id=household_id).order_by(Zone.name).all()
 
 
 def _parse_manufacture_year(form):
@@ -55,10 +61,15 @@ def appliance_lookup():
 def appliance_list():
     show_archived = request.args.get('archived') == '1'
     status = ApplianceStatus.archived if show_archived else ApplianceStatus.active
-    appliances = Appliance.query.filter_by(
-        household_id=current_user.household_id, status=status
-    ).order_by(Appliance.name).all()
-    return render_template('appliances/list.html', appliances=appliances, show_archived=show_archived)
+    zones = _household_zones(current_user.household_id)
+    zone_filter = next((z for z in zones if str(z.id) == request.args.get('zone')), None)
+    query = Appliance.query.filter_by(household_id=current_user.household_id, status=status)
+    if zone_filter:
+        query = query.filter_by(zone_id=zone_filter.id)
+    return render_template(
+        'appliances/list.html', appliances=query.order_by(Appliance.name).all(), show_archived=show_archived,
+        zones=zones, zone_filter=zone_filter,
+    )
 
 
 @main_bp.route('/appliances/new', methods=['GET', 'POST'])
@@ -77,6 +88,7 @@ def appliance_new():
             model_number=request.form.get('model_number', '').strip() or None,
             serial_number=request.form.get('serial_number', '').strip() or None,
             room_id=_parse_room_id(request.form, current_user.household_id),
+            zone_id=parse_household_zone_id(request.form, current_user.household_id),
             manufacture_year=_parse_manufacture_year(request.form),
             install_date=parse_date(request.form.get('install_date')),
             purchase_date=parse_date(request.form.get('purchase_date')),
@@ -115,7 +127,7 @@ def appliance_new():
     rooms = Room.query.filter_by(household_id=current_user.household_id).order_by(Room.floor, Room.name).all()
     return render_template(
         'appliances/form.html', appliance=None, category_labels=CATEGORY_LABELS, rooms=rooms,
-        spec_fields=APPLIANCE_SPEC_FIELDS,
+        zones=_household_zones(current_user.household_id), spec_fields=APPLIANCE_SPEC_FIELDS,
     )
 
 
@@ -164,6 +176,7 @@ def appliance_edit(appliance_id):
         appliance.model_number = request.form.get('model_number', '').strip() or None
         appliance.serial_number = request.form.get('serial_number', '').strip() or None
         appliance.room_id = _parse_room_id(request.form, appliance.household_id)
+        appliance.zone_id = parse_household_zone_id(request.form, appliance.household_id)
         appliance.manufacture_year = _parse_manufacture_year(request.form)
         appliance.install_date = parse_date(request.form.get('install_date'))
         appliance.purchase_date = parse_date(request.form.get('purchase_date'))
@@ -178,7 +191,7 @@ def appliance_edit(appliance_id):
     rooms = Room.query.filter_by(household_id=appliance.household_id).order_by(Room.floor, Room.name).all()
     return render_template(
         'appliances/form.html', appliance=appliance, category_labels=CATEGORY_LABELS, rooms=rooms,
-        spec_fields=APPLIANCE_SPEC_FIELDS,
+        zones=_household_zones(appliance.household_id), spec_fields=APPLIANCE_SPEC_FIELDS,
     )
 
 
