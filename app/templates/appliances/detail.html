@@ -14,6 +14,7 @@
       <div class="text-muted">
         {{ appliance.category_label }}
         {% if appliance.room %} · <a href="{{ url_for('main.home', tab='rooms') }}" class="text-muted">{{ appliance.room.name }}</a>{% endif %}
+        {% if appliance.zone %} · <a href="{{ url_for('main.zone_detail', zone_id=appliance.zone.id) }}" class="text-muted">{{ appliance.zone.name }}</a>{% endif %}
       </div>
       <form method="post" action="{{ url_for('main.appliance_photo_upload', appliance_id=appliance.id) }}"
             enctype="multipart/form-data" class="mt-2">
@@ -48,6 +49,7 @@
     <h2 class="h6 mb-3" id="appliance-details-heading">Appliance details</h2>
     <dl class="row mb-0 small">
       {% set room_link %}{% if appliance.room %}<a href="{{ url_for('main.home', tab='rooms') }}">{{ appliance.room.name }}</a>{% endif %}{% endset %}
+      {% set zone_link %}{% if appliance.zone %}<a href="{{ url_for('main.zone_detail', zone_id=appliance.zone.id) }}">{{ appliance.zone.name }}</a>{% endif %}{% endset %}
       {% for label, value in [
         ('Name', appliance.name),
         ('Category', appliance.category_label),
@@ -56,6 +58,7 @@
         ('Serial number', appliance.serial_number),
         ('Manufacture year', appliance.manufacture_year),
         ('Room/location', room_link),
+        ('Zone', zone_link),
         ('Install date', appliance.install_date|datefmt if appliance.install_date),
         ('Purchase date', appliance.purchase_date|datefmt if appliance.purchase_date),
         ('Professional service interval',

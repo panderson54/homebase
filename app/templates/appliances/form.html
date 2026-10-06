@@ -64,6 +64,15 @@
     </select>
   </div>
   <div class="col-md-4">
+    <label class="form-label" for="zone_id">Zone</label>
+    <select class="form-select" id="zone_id" name="zone_id">
+      <option value="">No zone assigned</option>
+      {% for zone in zones %}
+        <option value="{{ zone.id }}" {{ 'selected' if appliance and appliance.zone_id == zone.id }}>{{ zone.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-4">
     <label class="form-label" for="install_date">Install date</label>
     <input type="date" class="form-control" id="install_date" name="install_date"
            value="{{ appliance.install_date if appliance else '' }}">
