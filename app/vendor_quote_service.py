@@ -1,7 +1,8 @@
 """Create/update/link/accept/delete vendor quotes. The one rule beyond plain
 CRUD: a job (the Appliance or Zone a quote is linked to) has at most one
-accepted quote, so accepting one declines that job's other quotes, whichever
-vendor they came from. An unlinked quote has no competitors to decline."""
+accepted quote, so accepting one declines that job's other competing bids,
+whichever vendor they came from. An unlinked quote has no competitors to
+decline, and an independent estimate (separate work) is never a rival."""
 from app import db, document_service
 from app.models import QuoteStatus, Vendor, VendorQuote
 
@@ -10,7 +11,7 @@ class QuoteValidationError(ValueError):
     pass
 
 
-def _clean(quote_number, description, amount, valid_until, status):
+def _clean(quote_number, description, amount, valid_until, status, quoted_on, is_independent_estimate):
     quote_number = (quote_number or '').strip() or None
     if quote_number is None and amount is None:
         raise QuoteValidationError('Enter a quote number or an amount.')
@@ -24,8 +25,10 @@ def _clean(quote_number, description, amount, valid_until, status):
         'quote_number': quote_number,
         'description': (description or '').strip() or None,
         'amount': amount,
+        'quoted_on': quoted_on,
         'valid_until': valid_until,
         'status': status,
+        'is_independent_estimate': bool(is_independent_estimate),
     }
 
 
@@ -38,17 +41,17 @@ def _validate_job(vendor, appliance, zone):
 
 
 def _decline_competitors(quote):
-    if quote.job is None:
+    if quote.job is None or quote.is_independent_estimate:
         return
     for other in quote.job.quotes:
-        if other is not quote:
+        if other is not quote and not other.is_independent_estimate:
             other.status = QuoteStatus.declined
 
 
 def create(vendor, quote_number=None, description=None, amount=None, valid_until=None, status=None,
-           appliance=None, zone=None):
+           appliance=None, zone=None, quoted_on=None, is_independent_estimate=False):
     """Raises QuoteValidationError if the fields don't describe a usable quote."""
-    fields = _clean(quote_number, description, amount, valid_until, status)
+    fields = _clean(quote_number, description, amount, valid_until, status, quoted_on, is_independent_estimate)
     _validate_job(vendor, appliance, zone)
     quote = VendorQuote(vendor=vendor, appliance=appliance, zone=zone, **fields)
     db.session.add(quote)
@@ -60,9 +63,9 @@ def create(vendor, quote_number=None, description=None, amount=None, valid_until
 
 
 def update(quote, quote_number=None, description=None, amount=None, valid_until=None, status=None,
-           appliance=None, zone=None):
+           appliance=None, zone=None, quoted_on=None, is_independent_estimate=False):
     """Raises QuoteValidationError if the fields don't describe a usable quote."""
-    fields = _clean(quote_number, description, amount, valid_until, status)
+    fields = _clean(quote_number, description, amount, valid_until, status, quoted_on, is_independent_estimate)
     _validate_job(quote.vendor, appliance, zone)
     for name, value in {**fields, 'appliance': appliance, 'zone': zone}.items():
         setattr(quote, name, value)
@@ -70,6 +73,12 @@ def update(quote, quote_number=None, description=None, amount=None, valid_until=
         _decline_competitors(quote)
     db.session.commit()
     return quote
+
+
+def sorted_by_quoted_on(quotes):
+    """Newest quote date first; quotes with no date last."""
+    dated = sorted((q for q in quotes if q.quoted_on), key=lambda q: q.quoted_on, reverse=True)
+    return dated + [q for q in quotes if not q.quoted_on]
 
 
 def link(quote, appliance=None, zone=None):
@@ -119,21 +128,25 @@ def unlinked_quotes(household_id):
 
 
 def open_quotes_by_job(household_id):
-    """Pending quotes grouped by job as [{'appliance', 'zone', 'quotes'}], jobs
-    sorted by name with the unlinked group (both None) last."""
+    """Pending quotes grouped by job as [{'appliance', 'zone', 'independent', 'quotes'}], jobs
+    sorted by name with the unlinked group (both None) last. A job's independent
+    estimates form their own group, after its competing bids."""
     quotes = _household_quotes(household_id).filter(
         VendorQuote.status == QuoteStatus.pending,
     ).order_by(VendorQuote.created_at).all()
     groups = {}
     for quote in quotes:
-        key = (quote.appliance, quote.zone)
+        key = (quote.appliance, quote.zone, quote.is_independent_estimate)
         groups.setdefault(key, []).append(quote)
     return sorted(
-        ({'appliance': appliance, 'zone': zone, 'quotes': group} for (appliance, zone), group in groups.items()),
+        (
+            {'appliance': appliance, 'zone': zone, 'independent': independent, 'quotes': group}
+            for (appliance, zone, independent), group in groups.items()
+        ),
         key=_group_sort_key,
     )
 
 
 def _group_sort_key(group):
     job = group['appliance'] or group['zone']
-    return (job is None, job.name.lower() if job else '')
+    return (job is None, job.name.lower() if job else '', group['independent'])

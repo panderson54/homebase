@@ -3,6 +3,20 @@
   <span class="badge {{ quote_badge }} text-capitalize">{{ quote.status.value }}</span>
 {% endmacro %}
 
+{% macro estimate_badge(quote) %}
+  {% if quote.is_independent_estimate %}<span class="badge text-bg-light border text-muted">Independent estimate</span>{% endif %}
+{% endmacro %}
+
+{% macro quoted_on(quote) %}{{ quote.quoted_on|datefmt if quote.quoted_on else '—' }}{% endmacro %}
+
+{% macro independent_checkbox(checked=false, id='is_independent_estimate') %}
+  <div class="form-check">
+    <input class="form-check-input" type="checkbox" id="{{ id }}" name="is_independent_estimate" {{ 'checked' if checked }}>
+    <label class="form-check-label" for="{{ id }}">Independent estimate</label>
+  </div>
+  <div class="form-text">Check for separate work, not a competing bid. Accepting it won't decline other quotes.</div>
+{% endmacro %}
+
 {% macro valid_until(quote) %}
   {{ quote.valid_until|datefmt if quote.valid_until else '—' }}
   {% if quote.is_expired and quote.status.value == 'pending' %}

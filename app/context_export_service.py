@@ -93,9 +93,11 @@ def _quote_lines(quotes):
     for quote in quotes:
         number = f'#{quote.quote_number}' if quote.quote_number else '(no number)'
         amount = f' — ${quote.amount:.2f}' if quote.amount is not None else ''
+        quoted = f' — quoted {quote.quoted_on.isoformat()}' if quote.quoted_on else ''
         valid = f' — valid until {quote.valid_until.isoformat()}' if quote.valid_until else ''
         job = f' — for {quote.job.name}' if quote.job else ''
-        lines.append(f'  - {number}{amount}{valid} [{quote.status.value}]{job}')
+        independent = ' (independent estimate)' if quote.is_independent_estimate else ''
+        lines.append(f'  - {number}{amount}{quoted}{valid} [{quote.status.value}]{job}{independent}')
         if quote.description:
             lines.append(f'    {quote.description}')
     return lines

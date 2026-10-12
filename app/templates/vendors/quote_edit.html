@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from 'quotes/_macros.html' import target_select %}
+{% from 'quotes/_macros.html' import target_select, independent_checkbox %}
 {% block title %}Edit quote — {{ vendor.name }} — Homebase{% endblock %}
 
 {% block content %}
@@ -24,6 +24,12 @@
   </div>
 
   <div class="col-md-3">
+    <label class="form-label" for="quoted_on">Quote date</label>
+    <input type="date" class="form-control" id="quoted_on" name="quoted_on"
+           value="{{ quote.quoted_on.isoformat() if quote.quoted_on else '' }}">
+  </div>
+
+  <div class="col-md-3">
     <label class="form-label" for="valid_until">Valid until</label>
     <input type="date" class="form-control" id="valid_until" name="valid_until"
            value="{{ quote.valid_until.isoformat() if quote.valid_until else '' }}">
@@ -43,6 +49,10 @@
     <label class="form-label" for="target">For</label>
     {{ target_select(appliances, zones, quote.appliance_id, quote.zone_id) }}
     <div class="form-text">The appliance or zone whose professional service this quote prices.</div>
+  </div>
+
+  <div class="col-md-6">
+    {{ independent_checkbox(quote.is_independent_estimate) }}
   </div>
 
   <div class="col-12">

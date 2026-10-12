@@ -457,3 +457,110 @@ class TestOpenQuotesDashboard:
     def test_hidden_when_nothing_is_open(self, logged_in_client, vendor):
         vendor_quote_service.create(vendor, amount=Decimal('1'), status='declined')
         assert 'Open quotes' not in logged_in_client.get('/').data.decode()
+
+
+class TestQuoteDate:
+    def test_create_saves_and_shows_quote_date(self, logged_in_client, vendor):
+        logged_in_client.post(f'/vendors/{vendor.id}/quotes', data={'amount': '10', 'quoted_on': '2026-08-19'})
+        quote = VendorQuote.query.filter_by(vendor_id=vendor.id).one()
+        assert quote.quoted_on == date(2026, 8, 19)
+        assert 'Aug 19, 2026' in logged_in_client.get(f'/vendors/{vendor.id}').data.decode()
+
+    def test_edit_sets_and_clears_quote_date(self, logged_in_client, db, vendor, quote):
+        logged_in_client.post(f'/vendors/{vendor.id}/quotes/{quote.id}/edit', data={
+            'amount': '315.07', 'quoted_on': '2026-08-24',
+        })
+        db.session.refresh(quote)
+        assert quote.quoted_on == date(2026, 8, 24)
+        logged_in_client.post(f'/vendors/{vendor.id}/quotes/{quote.id}/edit', data={'amount': '315.07'})
+        db.session.refresh(quote)
+        assert quote.quoted_on is None
+
+    def test_malformed_quote_date_is_rejected(self, logged_in_client, vendor):
+        logged_in_client.post(f'/vendors/{vendor.id}/quotes', data={'amount': '10', 'quoted_on': 'last week'})
+        assert VendorQuote.query.filter_by(vendor_id=vendor.id).count() == 0
+
+    def test_sorted_by_quoted_on_puts_newest_first_and_undated_last(self, vendor):
+        old = vendor_quote_service.create(vendor, amount=Decimal('1'), quoted_on=date(2026, 8, 19))
+        undated = vendor_quote_service.create(vendor, amount=Decimal('2'))
+        new = vendor_quote_service.create(vendor, amount=Decimal('3'), quoted_on=date(2026, 8, 24))
+        assert vendor_quote_service.sorted_by_quoted_on([old, undated, new]) == [new, old, undated]
+
+    def test_vendor_page_sorts_by_quote_date_on_request(self, logged_in_client, vendor):
+        vendor_quote_service.create(vendor, quote_number='OLDER', quoted_on=date(2026, 8, 19))
+        vendor_quote_service.create(vendor, quote_number='NEWER', quoted_on=date(2026, 8, 24))
+        vendor_quote_service.create(vendor, quote_number='UNDATED')
+        page = logged_in_client.get(f'/vendors/{vendor.id}?quote_sort=quoted_on').data.decode()
+        assert page.index('NEWER') < page.index('OLDER') < page.index('UNDATED')
+
+    def test_quote_date_is_exported(self, household, vendor):
+        vendor_quote_service.create(vendor, quote_number='1', quoted_on=date(2026, 8, 19))
+        assert 'quoted 2026-08-19' in build_context_markdown(household)
+
+
+class TestIndependentEstimates:
+    def test_accepting_a_bid_leaves_independent_estimates_alone(self, vendor, rival_vendor, gutters):
+        bid = vendor_quote_service.create(vendor, amount=Decimal('1'), zone=gutters)
+        rival = vendor_quote_service.create(rival_vendor, amount=Decimal('2'), zone=gutters)
+        estimate = vendor_quote_service.create(
+            vendor, amount=Decimal('3'), zone=gutters, is_independent_estimate=True,
+        )
+        vendor_quote_service.accept(bid)
+        assert rival.status == QuoteStatus.declined
+        assert estimate.status == QuoteStatus.pending
+
+    def test_accepting_an_independent_estimate_declines_nothing(self, vendor, rival_vendor, gutters):
+        bid = vendor_quote_service.create(rival_vendor, amount=Decimal('2'), zone=gutters)
+        estimate = vendor_quote_service.create(
+            vendor, amount=Decimal('3'), zone=gutters, is_independent_estimate=True,
+        )
+        vendor_quote_service.accept(estimate)
+        assert estimate.status == QuoteStatus.accepted
+        assert bid.status == QuoteStatus.pending
+
+    def test_flag_saves_from_create_and_edit_forms(self, logged_in_client, db, vendor, quote):
+        logged_in_client.post(f'/vendors/{vendor.id}/quotes', data={
+            'amount': '5', 'is_independent_estimate': 'on',
+        })
+        created = VendorQuote.query.filter_by(vendor_id=vendor.id, amount=Decimal('5')).one()
+        assert created.is_independent_estimate is True
+
+        assert quote.is_independent_estimate is False
+        logged_in_client.post(f'/vendors/{vendor.id}/quotes/{quote.id}/edit', data={
+            'amount': '315.07', 'is_independent_estimate': 'on',
+        })
+        db.session.refresh(quote)
+        assert quote.is_independent_estimate is True
+        logged_in_client.post(f'/vendors/{vendor.id}/quotes/{quote.id}/edit', data={'amount': '315.07'})
+        db.session.refresh(quote)
+        assert quote.is_independent_estimate is False
+
+    def test_compare_groups_bids_and_lists_estimates_separately(
+        self, logged_in_client, vendor, rival_vendor, gutters,
+    ):
+        vendor_quote_service.create(vendor, quote_number='BID-A', amount=Decimal('1'), zone=gutters)
+        vendor_quote_service.create(rival_vendor, quote_number='BID-B', amount=Decimal('2'), zone=gutters)
+        vendor_quote_service.create(
+            vendor, description='Duct cleaning', amount=Decimal('3'), zone=gutters, is_independent_estimate=True,
+        )
+        page = logged_in_client.get(f'/quotes/compare?target=zone:{gutters.id}').data.decode()
+        assert 'Open <span class="text-muted">(2)' in page
+        assert 'Independent estimates <span class="text-muted">(1)' in page
+        assert page.index('Independent estimates') < page.index('Duct cleaning')
+        assert 'Accept' in page.split('Independent estimates')[0]
+        assert 'Accept' not in page.split('Independent estimates')[1]
+
+    def test_dashboard_separates_independent_estimates_from_bids(
+        self, logged_in_client, vendor, rival_vendor, gutters,
+    ):
+        vendor_quote_service.create(vendor, amount=Decimal('1'), zone=gutters)
+        vendor_quote_service.create(rival_vendor, amount=Decimal('2'), zone=gutters)
+        vendor_quote_service.create(vendor, amount=Decimal('3'), zone=gutters, is_independent_estimate=True)
+        groups = vendor_quote_service.open_quotes_by_job(vendor.household_id)
+        assert [(g['independent'], len(g['quotes'])) for g in groups] == [(False, 2), (True, 1)]
+        page = logged_in_client.get('/').data.decode()
+        assert 'independent estimates' in page
+
+    def test_flag_is_exported(self, household, vendor, gutters):
+        vendor_quote_service.create(vendor, quote_number='1', zone=gutters, is_independent_estimate=True)
+        assert '(independent estimate)' in build_context_markdown(household)
