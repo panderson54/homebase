@@ -8,34 +8,30 @@ It also lets agents file and read feature requests (the /agent-request page),
 but not approve/deny them — reviewing stays with the homeowner.
 
 Homebase is single-household (see README), so this operates on the one
-Household row rather than needing a login/session of its own. It runs as a
-local stdio process, never over HTTP, so the web app's Google sign-in
-doesn't apply to it.
+Household row rather than needing a login/session of its own.
 
-Run with: `.venv/bin/python -m app.mcp_server`
+Two ways to reach it, both via create_mcp_server():
+- locally over stdio: `.venv/bin/python -m app.mcp_server`
+- remotely over HTTPS at /mcp with a bearer token (see app/mcp_http.py)
 """
+import functools
 from datetime import date
 
 from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError
 
 from app import create_app, feature_request_service, service_record_service, vendor_service
 from app.feature_request_data import STATUS_LABELS, agent_instructions_text
 from app.models import Appliance, FeatureRequest, Household, ServiceCategory, Vendor, Zone
 
-mcp = MCPServer('homebase-services')
-
-_flask_app = create_app()
-_flask_app.app_context().push()
-
 
 def _household():
     household = Household.query.first()
     if household is None:
-        raise RuntimeError('No household exists yet — sign in to the web app once first.')
+        raise ValueError('No household exists yet — sign in to the web app once first.')
     return household
 
 
-@mcp.tool()
 def list_appliances() -> list[dict]:
     """List appliances a service visit can be logged against."""
     household = _household()
@@ -45,7 +41,6 @@ def list_appliances() -> list[dict]:
     ]
 
 
-@mcp.tool()
 def list_zones() -> list[dict]:
     """List zones (roof, gutters, garden, etc.) a service visit can be logged against."""
     household = _household()
@@ -55,7 +50,6 @@ def list_zones() -> list[dict]:
     ]
 
 
-@mcp.tool()
 def list_vendors() -> list[dict]:
     """List vendors already on file, to check before adding a new one."""
     household = _household()
@@ -65,7 +59,6 @@ def list_vendors() -> list[dict]:
     ]
 
 
-@mcp.tool()
 def create_service(
     service_date: str,
     appliance_id: int | None = None,
@@ -140,14 +133,12 @@ def _feature_request(household, request_id):
     return feature_request
 
 
-@mcp.tool()
 def feature_request_instructions() -> str:
     """How to write a useful feature request, and every field's meaning and allowed values.
     Read this before submit_feature_request."""
     return agent_instructions_text()
 
 
-@mcp.tool()
 def list_feature_requests(status: str | None = None) -> list[dict]:
     """List feature requests (newest first; unread oldest first), optionally filtered by status
     (unread, approved, denied, implemented). Check this for duplicates before submitting."""
@@ -160,7 +151,6 @@ def list_feature_requests(status: str | None = None) -> list[dict]:
     ]
 
 
-@mcp.tool()
 def get_feature_request(request_id: int) -> dict:
     """Get one feature request in full, including a `markdown` rendering to use as a build spec."""
     feature_request = _feature_request(_household(), request_id)
@@ -170,7 +160,6 @@ def get_feature_request(request_id: int) -> dict:
     }
 
 
-@mcp.tool()
 def submit_feature_request(
     title: str,
     summary: str,
@@ -199,7 +188,6 @@ def submit_feature_request(
     return feature_request_service.summary_dict(feature_request)
 
 
-@mcp.tool()
 def update_feature_request(
     request_id: int,
     title: str | None = None,
@@ -231,5 +219,34 @@ def update_feature_request(
     return feature_request_service.summary_dict(feature_request)
 
 
+TOOLS = (
+    list_appliances, list_zones, list_vendors, create_service,
+    feature_request_instructions, list_feature_requests, get_feature_request,
+    submit_feature_request, update_feature_request,
+)
+
+
+def _in_app_context(flask_app, tool):
+    # The SDK runs sync tools on worker threads, so each call opens its own app
+    # context (and DB session) instead of relying on one pushed elsewhere.
+    @functools.wraps(tool)
+    def wrapper(*args, **kwargs):
+        with flask_app.app_context():
+            try:
+                return tool(*args, **kwargs)
+            except ValueError as e:
+                # The tools raise ValueError for bad input the agent can fix; the SDK
+                # hides any message not raised as ToolError, so pass these through.
+                raise ToolError(str(e)) from e
+    return wrapper
+
+
+def create_mcp_server(flask_app):
+    server = MCPServer('homebase-services')
+    for tool in TOOLS:
+        server.add_tool(_in_app_context(flask_app, tool))
+    return server
+
+
 if __name__ == '__main__':
-    mcp.run()
+    create_mcp_server(create_app()).run()

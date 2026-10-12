@@ -42,7 +42,7 @@ class TestListing:
         assert [a['name'] for a in list_appliances()] == ['Furnace']
 
     def test_no_household_raises(self, db):
-        with pytest.raises(RuntimeError):
+        with pytest.raises(ValueError, match='No household'):
             list_appliances()
 
 

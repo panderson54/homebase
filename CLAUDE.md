@@ -28,7 +28,11 @@ app/
                            #   + first-sign-in user provisioning
   access_control.py       # Deny-by-default before_request guard: every endpoint not in
                            #   PUBLIC_ENDPOINTS needs a signed-in, still-allowlisted user
-  cli.py                  # `flask seed-templates`
+  mcp_server.py           # MCP tools as plain functions + create_mcp_server(flask_app),
+                           #   which runs each call in its own app context
+  mcp_http.py             # One ASGI app (asgi.py): /mcp behind a bearer token, else Flask
+  mcp_token_service.py    # Remote MCP tokens: parse/verify HOMEBASE_MCP_TOKENS (hashes only)
+  cli.py                  # `flask seed-templates`, `flask mcp-token`
   routes/                 # Request handlers split by domain (sub-package)
     __init__.py           # Blueprint + sub-module imports
     helpers.py            # Shared route utilities (household scoping, slugify, parse_date)
@@ -85,7 +89,9 @@ signed-in-but-not-allowlisted or anonymous client, so a new route is private by
 default — keep `@login_required` on it anyway, and never add to
 `PUBLIC_ENDPOINTS`/`PUBLIC_STATIC_FILES` unless the login page itself needs it.
 The allowlist (`HOMEBASE_ALLOWED_EMAILS`) is server config only; don't add a
-UI or table for it.
+UI or table for it. The same goes for remote MCP tokens (`HOMEBASE_MCP_TOKENS`),
+which unlock only `/mcp` — `mcp_http.py` routes that path before Flask, so the
+Flask guard never sees it; don't make a token grant website access.
 
 **New Route Domains**: Add routes to the appropriate sub-module in
 `app/routes/`. If none fits, create a new sub-module and register it in

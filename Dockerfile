@@ -8,7 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app/ app/
 COPY migrations/ migrations/
-COPY run.py entrypoint.sh ./
+COPY run.py asgi.py entrypoint.sh ./
 
 RUN mkdir -p data/uploads logs && chown -R appuser:appuser /app
 USER appuser
