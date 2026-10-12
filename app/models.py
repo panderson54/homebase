@@ -293,6 +293,8 @@ class Consumable(db.Model):
     name = db.Column(db.String(200), nullable=False)
     part_number = db.Column(db.String(120))
     purchase_url = db.Column(db.String(1000))
+    description = db.Column(db.Text)
+    last_purchased_at = db.Column(db.Date)
     frequency_value = db.Column(db.Integer)
     frequency_unit = db.Column(db.Enum(FrequencyUnit, native_enum=False))
     last_replaced_at = db.Column(db.Date)

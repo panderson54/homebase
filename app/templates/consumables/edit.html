@@ -21,6 +21,16 @@
     <input type="url" class="form-control" id="purchase_url" name="purchase_url" value="{{ consumable.purchase_url or '' }}">
   </div>
 
+  <div class="col-md-8">
+    <label class="form-label" for="description">Description / notes</label>
+    <textarea class="form-control" id="description" name="description" rows="2">{{ consumable.description or '' }}</textarea>
+  </div>
+  <div class="col-md-4">
+    <label class="form-label" for="last_purchased_at">Last purchased</label>
+    <input type="date" class="form-control" id="last_purchased_at" name="last_purchased_at"
+           value="{{ consumable.last_purchased_at.isoformat() if consumable.last_purchased_at else '' }}">
+  </div>
+
   <div class="col-auto">
     <label class="form-label" for="frequency_value">Every</label>
     <input type="number" min="1" class="form-control" id="frequency_value" name="frequency_value" style="width: 6rem"
