@@ -3,6 +3,10 @@ import os
 # Must be set before `app` is imported, so create_app() picks up the in-memory DB.
 os.environ['DATABASE_URL'] = 'sqlite:///:memory:'
 os.environ['SECRET_KEY'] = 'test-secret-key'
+os.environ['GOOGLE_CLIENT_ID'] = 'test-client-id'
+os.environ['GOOGLE_CLIENT_SECRET'] = 'test-client-secret'
+os.environ['GOOGLE_REDIRECT_URI'] = ''
+os.environ['HOMEBASE_ALLOWED_EMAILS'] = 'homeowner@example.com'
 
 import pytest
 
@@ -46,8 +50,8 @@ def household(db):
 @pytest.fixture
 def user(db, household):
     from app.models import User
-    u = User(household_id=household.id, email='homeowner@example.com', name='Homeowner')
-    u.set_password('password123')
+    u = User(household_id=household.id, email='homeowner@example.com', name='Homeowner',
+             google_sub='google-sub-homeowner')
     db.session.add(u)
     db.session.commit()
     return u
@@ -55,7 +59,11 @@ def user(db, household):
 
 @pytest.fixture
 def logged_in_client(client, user):
-    client.post('/login', data={'email': user.email, 'password': 'password123'})
+    # Sign-in itself goes through Google (covered in test_auth.py); everything
+    # else just needs the Flask-Login session it leaves behind.
+    with client.session_transaction() as sess:
+        sess['_user_id'] = str(user.id)
+        sess['_fresh'] = True
     return client
 
 

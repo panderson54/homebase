@@ -1,44 +1,15 @@
-"""Flask CLI commands: `flask create-user`, `flask seed-templates`."""
-import getpass
+"""Flask CLI commands: `flask seed-templates`.
 
+There is no `create-user`: users are created on first Google sign-in, from the
+server-configured allowlist (see app/auth_service.py)."""
 import click
 
 from app import db
 from app.category_templates_data import CATEGORY_TEMPLATES
-from app.models import CategoryTemplate, FrequencyUnit, Household, TemplateKind, User
+from app.models import CategoryTemplate, FrequencyUnit, TemplateKind
 
 
 def register(app):
-    @app.cli.command('create-user')
-    @click.option('--email', prompt=True)
-    @click.option('--name', prompt=True)
-    @click.option('--household-name', default='Home', show_default=True)
-    def create_user(email, name, household_name):
-        """Create a household (if none exists yet) and a user account."""
-        email = email.strip().lower()
-        if User.query.filter_by(email=email).first():
-            click.echo(f'A user with email {email} already exists.')
-            return
-
-        household = Household.query.first()
-        if household is None:
-            household = Household(name=household_name)
-            db.session.add(household)
-            db.session.flush()
-
-        password = getpass.getpass('Password: ')
-        confirm = getpass.getpass('Confirm password: ')
-        if password != confirm:
-            click.echo('Passwords did not match.')
-            db.session.rollback()
-            return
-
-        user = User(household_id=household.id, email=email, name=name)
-        user.set_password(password)
-        db.session.add(user)
-        db.session.commit()
-        click.echo(f'Created user {email} in household "{household.name}".')
-
     @app.cli.command('seed-templates')
     def seed_templates():
         """Load/refresh category_templates seed rows from category_templates_data.py."""

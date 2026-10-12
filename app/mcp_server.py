@@ -7,9 +7,10 @@ zones, or rooms — those stay a manual, browsable step in the web app.
 It also lets agents file and read feature requests (the /agent-request page),
 but not approve/deny them — reviewing stays with the homeowner.
 
-Homebase is single-household (see README), so — like `flask create-user`
-in cli.py — this operates on the one Household row rather than needing a
-login/session of its own.
+Homebase is single-household (see README), so this operates on the one
+Household row rather than needing a login/session of its own. It runs as a
+local stdio process, never over HTTP, so the web app's Google sign-in
+doesn't apply to it.
 
 Run with: `.venv/bin/python -m app.mcp_server`
 """
@@ -30,7 +31,7 @@ _flask_app.app_context().push()
 def _household():
     household = Household.query.first()
     if household is None:
-        raise RuntimeError('No household exists yet — run `flask create-user` first.')
+        raise RuntimeError('No household exists yet — sign in to the web app once first.')
     return household
 
 
