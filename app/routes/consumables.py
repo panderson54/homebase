@@ -27,6 +27,8 @@ def consumable_create(appliance_id):
         name=request.form.get('name', '').strip(),
         part_number=request.form.get('part_number', '').strip() or None,
         purchase_url=request.form.get('purchase_url', '').strip() or None,
+        description=request.form.get('description', '').strip() or None,
+        last_purchased_at=parse_date(request.form.get('last_purchased_at')),
         frequency_value=int(frequency_value) if frequency_value else None,
         frequency_unit=FrequencyUnit(frequency_unit) if frequency_unit else None,
     )
@@ -46,6 +48,8 @@ def consumable_edit(consumable_id):
         consumable.name = request.form.get('name', '').strip()
         consumable.part_number = request.form.get('part_number', '').strip() or None
         consumable.purchase_url = request.form.get('purchase_url', '').strip() or None
+        consumable.description = request.form.get('description', '').strip() or None
+        consumable.last_purchased_at = parse_date(request.form.get('last_purchased_at'))
         consumable.frequency_value = int(frequency_value) if frequency_value else None
         consumable.frequency_unit = FrequencyUnit(frequency_unit) if frequency_unit else None
         db.session.commit()

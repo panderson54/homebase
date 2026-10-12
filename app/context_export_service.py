@@ -53,6 +53,10 @@ def _consumable_lines(consumable):
         lines.append(f'    Part number: {consumable.part_number}')
     if consumable.purchase_url:
         lines.append(f'    Purchase link: {consumable.purchase_url}')
+    if consumable.description:
+        lines.append(f'    Description: {consumable.description}')
+    if consumable.last_purchased_at:
+        lines.append(f'    Last purchased: {consumable.last_purchased_at.isoformat()}')
     if consumable.last_replaced_at:
         lines.append(f'    Last replaced: {consumable.last_replaced_at.isoformat()}')
     if consumable.next_due_at:

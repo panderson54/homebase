@@ -250,6 +250,75 @@ class TestConsumables:
         assert consumable.frequency_value == 6
         assert consumable.frequency_unit.value == 'months'
 
+    def test_description_and_last_purchased_save_and_show_on_appliance_page(
+        self, logged_in_client, db, household
+    ):
+        appliance = Appliance(household_id=household.id, name='KitchenAid fridge', category='refrigerator')
+        db.session.add(appliance)
+        db.session.commit()
+
+        logged_in_client.post(f'/appliances/{appliance.id}/consumables', data={
+            'name': 'Water filter',
+            'description': 'Waterdrop EDR4RXD1 replacement filter',
+            'last_purchased_at': '2026-04-30',
+        })
+        consumable = Consumable.query.filter_by(appliance_id=appliance.id).first()
+        assert consumable.description == 'Waterdrop EDR4RXD1 replacement filter'
+        assert consumable.last_purchased_at == date(2026, 4, 30)
+
+        page = logged_in_client.get(f'/appliances/{appliance.id}').get_data(as_text=True)
+        assert 'Waterdrop EDR4RXD1 replacement filter' in page
+        assert 'Last purchased' in page
+
+    def test_edit_sets_and_clears_description_and_last_purchased(self, logged_in_client, db, household):
+        appliance = Appliance(household_id=household.id, name='Fridge', category='refrigerator')
+        db.session.add(appliance)
+        db.session.commit()
+        consumable = Consumable(appliance_id=appliance.id, name='Filter')
+        db.session.add(consumable)
+        db.session.commit()
+
+        logged_in_client.post(f'/consumables/{consumable.id}/edit', data={
+            'name': 'Filter', 'description': 'EDR4RXD1', 'last_purchased_at': '2026-04-30',
+        })
+        db.session.refresh(consumable)
+        assert consumable.description == 'EDR4RXD1'
+        assert consumable.last_purchased_at == date(2026, 4, 30)
+
+        logged_in_client.post(f'/consumables/{consumable.id}/edit', data={'name': 'Filter'})
+        db.session.refresh(consumable)
+        assert consumable.description is None
+        assert consumable.last_purchased_at is None
+
+    def test_edit_form_prefills_new_fields(self, logged_in_client, db, household):
+        appliance = Appliance(household_id=household.id, name='Fridge', category='refrigerator')
+        db.session.add(appliance)
+        db.session.commit()
+        consumable = Consumable(
+            appliance_id=appliance.id, name='Filter', description='EDR4RXD1', last_purchased_at=date(2026, 4, 30)
+        )
+        db.session.add(consumable)
+        db.session.commit()
+
+        page = logged_in_client.get(f'/consumables/{consumable.id}/edit').get_data(as_text=True)
+        assert 'EDR4RXD1' in page
+        assert 'value="2026-04-30"' in page
+
+    def test_appliance_page_lists_its_consumables_only(self, logged_in_client, db, household):
+        fridge = Appliance(household_id=household.id, name='Fridge', category='refrigerator')
+        washer = Appliance(household_id=household.id, name='Washer', category='washer')
+        db.session.add_all([fridge, washer])
+        db.session.commit()
+        db.session.add_all([
+            Consumable(appliance_id=fridge.id, name='Fridge filter'),
+            Consumable(appliance_id=washer.id, name='Washer cleaner'),
+        ])
+        db.session.commit()
+
+        page = logged_in_client.get(f'/appliances/{fridge.id}').get_data(as_text=True)
+        assert 'Fridge filter' in page
+        assert 'Washer cleaner' not in page
+
     def test_edit_404_for_other_household(self, logged_in_client, db):
         other = Household(name='Other')
         db.session.add(other)

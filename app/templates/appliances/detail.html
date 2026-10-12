@@ -200,6 +200,14 @@
       <label class="form-label">Description</label>
       <input type="text" class="form-control form-control-sm" name="description">
     </div>
+    <div class="col-md-3">
+      <label class="form-label">Description / notes</label>
+      <input type="text" class="form-control form-control-sm" name="description">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label">Last purchased</label>
+      <input type="date" class="form-control form-control-sm" name="last_purchased_at">
+    </div>
     <div class="col-auto">
       <label class="form-label">Every</label>
       <input type="number" min="1" class="form-control form-control-sm" name="frequency_value" required style="width: 5rem">
@@ -230,6 +238,8 @@
             <div>
               <strong>{{ consumable.name }}</strong>
               {% if consumable.part_number %}<span class="text-muted small">#{{ consumable.part_number }}</span>{% endif %}
+              {% if consumable.description %}<div class="small text-muted">{{ consumable.description }}</div>{% endif %}
+              {% if consumable.last_purchased_at %}<div class="small">Last purchased {{ consumable.last_purchased_at|datefmt }}</div>{% endif %}
               <div class="small">
                 {% if consumable.next_due_at %}Next due {{ consumable.next_due_at|datefmt }}
                 {% elif consumable.frequency_value %}Not yet replaced
