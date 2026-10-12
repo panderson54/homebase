@@ -50,7 +50,8 @@ photo OCR for auto-filling make/model/serial, and automatic manual lookup.
 
 Flask 3 + Flask-SQLAlchemy + Flask-Migrate (Alembic) + Flask-Login +
 Flask-WTF (CSRF), SQLite (WAL mode), server-rendered Jinja2 templates with
-Bootstrap 5 (no JS build step), gunicorn. Modeled on the `ledger_finance`
+Bootstrap 5 (no JS build step), served by uvicorn (via `a2wsgi`, beside the
+remote MCP endpoint). Modeled on the `ledger_finance`
 app's structure and deployment approach.
 
 ## Local development
@@ -64,7 +65,8 @@ cp .env.example .env   # SECRET_KEY + the Google sign-in settings below
 FLASK_APP=run.py .venv/bin/flask db upgrade
 FLASK_APP=run.py .venv/bin/flask seed-templates
 
-.venv/bin/python run.py   # http://localhost:5100
+.venv/bin/python run.py   # http://localhost:5100 (site only; Flask dev server)
+.venv/bin/uvicorn asgi:app --port 5100 --reload   # site + remote MCP at /mcp
 ```
 
 ## Sign-in (Google, allowlist only)
@@ -126,8 +128,11 @@ app/
   feature_request_service.py  # Validates/reviews/renders agent feature requests
   auth_service.py             # Google sign-in: allowlist matching + user provisioning
   access_control.py           # Deny-by-default guard run before every request
-  cli.py                      # `flask seed-templates`
-  mcp_server.py               # MCP server: log service visits via an LLM client
+  cli.py                      # `flask seed-templates`, `flask mcp-token`
+  mcp_server.py               # MCP tools: log service visits, file feature requests
+  mcp_http.py                 # One ASGI app: /mcp (bearer token) + the Flask site
+  mcp_token_service.py        # Remote MCP bearer tokens (config-only, hashed)
+asgi.py                         # Production entry point (uvicorn asgi:app)
   routes/                     # Blueprint, split by domain
   templates/, static/         # Jinja2 templates, Bootstrap-based
 migrations/                    # Alembic migrations
@@ -139,28 +144,51 @@ docs/appliance-tracker-plan.md  # Architecture & build plan
 
 - `flask seed-templates` — (re)loads `category_templates` from
   `app/category_templates_data.py`; safe to re-run, it replaces existing rows
+- `flask mcp-token <name>` — generates a remote MCP bearer token and prints the
+  `HOMEBASE_MCP_TOKENS` entry for it (see Remote MCP below); stores nothing
 
 ## MCP server
 
-`app/mcp_server.py` runs a basic stdio [MCP](https://modelcontextprotocol.io)
-server so an LLM client (e.g. Claude Desktop) can log service visits for you:
+`app/mcp_server.py` defines a basic [MCP](https://modelcontextprotocol.io)
+server so an LLM client can log service visits for you. Run it locally over
+stdio (e.g. for Claude Desktop):
 
 ```bash
 .venv/bin/python -m app.mcp_server
 ```
+
+or reach it remotely over HTTPS (see Remote MCP below).
 
 It exposes `list_appliances`, `list_zones`, and `list_vendors` (read-only
 lookups) and `create_service` (logs a vendor visit against an existing
 appliance or zone, reusing a vendor by name or creating a stub for a new
 one). It never creates appliances, zones, or rooms — those stay a manual
 step in the web app. It operates on the single household this instance was
-set up for and runs as a local stdio process (never over HTTP), so Google
-sign-in doesn't apply to it; sign in to the web app once first so the
-household exists.
+set up for, so sign in to the web app once first so the household exists.
 
 It also exposes feature-request tools (see below): `feature_request_instructions`,
 `list_feature_requests`, `get_feature_request`, `submit_feature_request`, and
 `update_feature_request`. There's deliberately no tool to approve or deny.
+
+### Remote MCP (for hosted AI agents)
+
+The same tools are served at `https://<your-domain>/mcp` (streamable HTTP,
+stateless, JSON responses) for agents that can't run a local process. Every
+request needs `Authorization: Bearer <token>`; tokens unlock only these tools,
+never the website, which still requires Google sign-in.
+
+Tokens are configured only in server env, like the email allowlist:
+
+1. `flask mcp-token muse` prints a new token (give it to the agent; it isn't
+   stored anywhere) and a `muse:<sha256>` entry.
+2. Add the entry to `HOMEBASE_MCP_TOKENS` (comma-separate one per agent) and
+   restart. A malformed entry stops startup rather than being ignored.
+3. To revoke, remove the entry and restart. Each request is logged with the
+   agent's name (`MCP request from muse`); rejected tokens log a warning.
+
+This needs the ASGI server: `entrypoint.sh` runs `uvicorn asgi:app`. Running
+`gunicorn run:app` still serves the site but not `/mcp`. Clients that only
+support OAuth-based MCP auth (not a static bearer token) can't connect.
 
 ## Agent feature requests
 
@@ -170,8 +198,9 @@ homeowner reviews each one (Unread → Approved / Denied → Implemented) and ca
 edit it. Instructions for agents are shown on the page itself (and returned by
 the `feature_request_instructions` MCP tool). Each request is also available as
 Markdown at `/agent-request/<id>.md` for a follow-on agent to build from.
-Agents log in as the normal user, so nothing technically stops them from
-approving their own requests. The instructions tell them not to.
+Agents filing through the MCP tools can't approve their own requests (there's
+no tool for it); an agent driving a browser signed in as you could, and the
+instructions tell it not to.
 
 ## Deployment
 
@@ -191,9 +220,9 @@ then sign in with an allowlisted Google account.
 
 Same shape as `ledger_finance`'s deployment: either the Docker Compose setup
 above, or Nginx (reverse proxy + TLS — required, since Google sign-in needs https)
-in front of Gunicorn managed by a systemd unit, running on a different port
-than `ledger_finance`. `entrypoint.sh` runs `flask db upgrade` automatically
-before starting Gunicorn, so deploys are just "pull, rebuild, restart."
+in front of uvicorn (`uvicorn asgi:app`) managed by a systemd unit, running on
+a different port than `ledger_finance`. `entrypoint.sh` runs `flask db upgrade`
+automatically before starting uvicorn, so deploys are just "pull, rebuild, restart."
 
 ## Data model
 

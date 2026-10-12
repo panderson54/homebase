@@ -1,15 +1,29 @@
-"""Flask CLI commands: `flask seed-templates`.
+"""Flask CLI commands: `flask seed-templates`, `flask mcp-token`.
 
 There is no `create-user`: users are created on first Google sign-in, from the
 server-configured allowlist (see app/auth_service.py)."""
 import click
 
-from app import db
+from app import db, mcp_token_service
 from app.category_templates_data import CATEGORY_TEMPLATES
 from app.models import CategoryTemplate, FrequencyUnit, TemplateKind
 
 
 def register(app):
+    @app.cli.command('mcp-token')
+    @click.argument('name')
+    def mcp_token(name):
+        """Generate a remote-MCP bearer token for NAME (e.g. muse) and its HOMEBASE_MCP_TOKENS entry."""
+        name = name.strip().lower()
+        if not mcp_token_service.is_valid_client_name(name):
+            raise click.BadParameter('use lowercase letters, digits, "-" or "_" (max 64).', param_hint='NAME')
+        token = mcp_token_service.generate_token()
+        click.echo(f'Bearer token for {name} — give this to the agent; it is not stored anywhere:')
+        click.echo(f'  {token}')
+        click.echo('')
+        click.echo('Add this entry to HOMEBASE_MCP_TOKENS (comma-separate multiple clients), then restart:')
+        click.echo(f'  {name}:{mcp_token_service.hash_token(token)}')
+
     @app.cli.command('seed-templates')
     def seed_templates():
         """Load/refresh category_templates seed rows from category_templates_data.py."""

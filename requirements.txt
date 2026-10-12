@@ -8,6 +8,8 @@ requests>=2.31
 python-dotenv==1.0.0
 SQLAlchemy>=2.0.36
 gunicorn>=21.2.0
+uvicorn>=0.30
+a2wsgi>=1.10
 Pillow>=9.1
 anthropic>=0.40
 mcp>=2.0
