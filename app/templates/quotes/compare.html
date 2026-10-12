@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from 'quotes/_macros.html' import status_badge, valid_until %}
+{% from 'quotes/_macros.html' import status_badge, valid_until, quoted_on %}
 {% block title %}Compare quotes — {{ job.name }} — Homebase{% endblock %}
 
 {% macro attachments(quote) %}
@@ -38,8 +38,8 @@
             <dl class="row small mb-0">
               <dt class="col-5">Valid until</dt>
               <dd class="col-7">{{ valid_until(quote) }}</dd>
-              <dt class="col-5">Received</dt>
-              <dd class="col-7">{{ quote.created_at|datefmt }}</dd>
+              <dt class="col-5">Quoted</dt>
+              <dd class="col-7">{{ quote.quoted_on|datefmt if quote.quoted_on else quote.created_at|datefmt }}</dd>
               {% if quote.description %}
                 <dt class="col-5">Details</dt>
                 <dd class="col-7">{{ quote.description }}</dd>
@@ -100,5 +100,34 @@
   </div>
 {% else %}
   <p class="text-muted">Nothing decided yet.</p>
+{% endif %}
+
+{% if independent_quotes %}
+  <h2 class="h5 mt-5">Independent estimates <span class="text-muted">({{ independent_quotes|length }})</span></h2>
+  <p class="small text-muted">Separate work from the bids above; accepting a bid doesn't affect these.</p>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle">
+      <thead>
+        <tr>
+          <th>Vendor</th>
+          <th>Details</th>
+          <th class="text-end">Amount</th>
+          <th>Quoted</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for quote in independent_quotes %}
+          <tr>
+            <td><a href="{{ url_for('main.vendor_detail', vendor_id=quote.vendor.id) }}">{{ quote.vendor.name }}</a></td>
+            <td class="small">{{ quote.description or '' }}</td>
+            <td class="text-end font-tabular">{{ quote.amount|currency if quote.amount is not none else '—' }}</td>
+            <td>{{ quoted_on(quote) }}</td>
+            <td>{{ status_badge(quote) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 {% endif %}
 {% endblock %}

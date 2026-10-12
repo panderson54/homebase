@@ -19,12 +19,18 @@ def _quote_fields(form):
         valid_until = parse_date(form.get('valid_until'))
     except ValueError:
         raise QuoteValidationError('Enter the valid-until date as YYYY-MM-DD.') from None
+    try:
+        quoted_on = parse_date(form.get('quoted_on'))
+    except ValueError:
+        raise QuoteValidationError('Enter the quote date as YYYY-MM-DD.') from None
     appliance, zone = parse_service_target(form.get('target'), current_user.household_id)
     return {
         'quote_number': form.get('quote_number'),
         'description': form.get('description'),
         'amount': parse_decimal(form.get('amount')),
+        'quoted_on': quoted_on,
         'valid_until': valid_until,
+        'is_independent_estimate': form.get('is_independent_estimate') == 'on',
         'status': form.get('status'),
         'appliance': appliance,
         'zone': zone,
@@ -145,12 +151,15 @@ def quote_compare():
     job = appliance or zone
     if job is None:
         abort(404)
-    open_quotes = [q for q in job.quotes if q.status == QuoteStatus.pending]
-    decided_quotes = [q for q in job.quotes if q.status != QuoteStatus.pending]
+    competing = [q for q in job.quotes if not q.is_independent_estimate]
+    open_quotes = [q for q in competing if q.status == QuoteStatus.pending]
+    decided_quotes = [q for q in competing if q.status != QuoteStatus.pending]
+    independent_quotes = [q for q in job.quotes if q.is_independent_estimate]
     quote_documents = {q.id: document_service.get_documents_for('vendor_quote', q.id) for q in job.quotes}
     return render_template(
         'quotes/compare.html', job=job, job_url=_job_url(appliance, zone),
-        open_quotes=open_quotes, decided_quotes=decided_quotes, quote_documents=quote_documents,
+        open_quotes=open_quotes, decided_quotes=decided_quotes, independent_quotes=independent_quotes,
+        quote_documents=quote_documents,
     )
 
 

@@ -1,6 +1,6 @@
 {#- Quotes for an Appliance's or Zone's professional service. Expects `job`,
     `job_appliance`, `job_zone`, `link_url`, `create_url`, `vendors`, `unlinked_quotes`. -#}
-{% from 'quotes/_macros.html' import status_badge, valid_until, job_target %}
+{% from 'quotes/_macros.html' import status_badge, valid_until, job_target, estimate_badge, quoted_on, independent_checkbox %}
 <h3 class="h6 mt-4">Quotes</h3>
 {% if job.pro_service_vendor %}
   <p class="small mb-2">
@@ -16,6 +16,7 @@
           <th>Vendor</th>
           <th>Quote #</th>
           <th class="text-end">Amount</th>
+          <th>Quoted</th>
           <th>Valid until</th>
           <th>Status</th>
           <th></th>
@@ -27,9 +28,11 @@
             <td>
               <a href="{{ url_for('main.vendor_detail', vendor_id=quote.vendor.id) }}">{{ quote.vendor.name }}</a>
               {% if quote.description %}<div class="small text-muted">{{ quote.description }}</div>{% endif %}
+              {{ estimate_badge(quote) }}
             </td>
             <td>{{ quote.quote_number or '—' }}</td>
             <td class="text-end font-tabular">{{ quote.amount|currency if quote.amount is not none else '—' }}</td>
+            <td>{{ quoted_on(quote) }}</td>
             <td>{{ valid_until(quote) }}</td>
             <td>{{ status_badge(quote) }}</td>
             <td>
@@ -96,9 +99,14 @@
       <input type="number" step="0.01" min="0" class="form-control form-control-sm" name="amount" style="width: 7rem">
     </div>
     <div class="col-auto">
+      <label class="form-label">Quote date</label>
+      <input type="date" class="form-control form-control-sm" name="quoted_on">
+    </div>
+    <div class="col-auto">
       <label class="form-label">Valid until</label>
       <input type="date" class="form-control form-control-sm" name="valid_until">
     </div>
+    <div class="col-md-3">{{ independent_checkbox(id='job_independent_estimate') }}</div>
     <div class="col-auto">
       <label class="form-label">PDF (optional)</label>
       <input type="file" class="form-control form-control-sm" name="file" accept=".pdf,.png,.jpg,.jpeg,.webp">

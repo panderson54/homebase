@@ -34,9 +34,11 @@
         <div class="card h-100">
           <div class="card-header d-flex justify-content-between align-items-center">
             {% if group.appliance or group.zone %}
-              <strong>{{ job_link(group.appliance, group.zone) }}</strong>
-              <a href="{{ url_for('main.quote_compare', target=job_target(group.appliance, group.zone)) }}"
-                 class="btn btn-sm btn-outline-primary">Compare</a>
+              <strong>{{ job_link(group.appliance, group.zone) }}{% if group.independent %} <span class="text-muted fw-normal small">— independent estimates</span>{% endif %}</strong>
+              {% if not group.independent %}
+                <a href="{{ url_for('main.quote_compare', target=job_target(group.appliance, group.zone)) }}"
+                   class="btn btn-sm btn-outline-primary">Compare</a>
+              {% endif %}
             {% else %}
               <strong>Not linked to a job</strong>
               <span class="small text-muted">Link from an appliance or zone to compare</span>

@@ -1,7 +1,7 @@
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from app import db, document_service, logo_service, service_record_service
+from app import db, document_service, logo_service, service_record_service, vendor_quote_service
 from app.models import Appliance, ApplianceStatus, Vendor, Zone
 from app.routes import main_bp
 from app.routes.helpers import (
@@ -86,8 +86,11 @@ def vendor_detail(vendor_id):
     quote_documents = {
         quote.id: document_service.get_documents_for('vendor_quote', quote.id) for quote in vendor.quotes
     }
+    sort_by_quote_date = request.args.get('quote_sort') == 'quoted_on'
+    quotes = vendor_quote_service.sorted_by_quoted_on(vendor.quotes) if sort_by_quote_date else vendor.quotes
     return render_template(
-        'vendors/detail.html', vendor=vendor, documents=documents, primary_photo=primary_photo,
+        'vendors/detail.html', vendor=vendor, quotes=quotes, sort_by_quote_date=sort_by_quote_date,
+        documents=documents, primary_photo=primary_photo,
         appliances=appliances, zones=zones, record_document_counts=record_document_counts,
         quote_documents=quote_documents,
     )

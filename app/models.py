@@ -379,8 +379,11 @@ class VendorQuote(db.Model):
     quote_number = db.Column(db.String(80))
     description = db.Column(db.String(300))
     amount = db.Column(db.Numeric(10, 2))
+    quoted_on = db.Column(db.Date)
     valid_until = db.Column(db.Date)
     status = db.Column(db.Enum(QuoteStatus, native_enum=False), nullable=False, default=QuoteStatus.pending)
+    # An independent estimate prices separate work, so it never competes with (or declines) the job's other quotes.
+    is_independent_estimate = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     appliance_id = db.Column(db.Integer, db.ForeignKey('appliances.id'), index=True)
     zone_id = db.Column(db.Integer, db.ForeignKey('zones.id'), index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
