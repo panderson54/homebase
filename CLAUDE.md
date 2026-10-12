@@ -24,7 +24,11 @@ app/
   feature_request_data.py  # Agent feature request choices, field specs, agent instructions
   feature_request_service.py  # Validate/create/update/review/render agent feature requests
                            #   (shared by routes/agent_requests.py and mcp_server.py)
-  cli.py                  # `flask create-user`, `flask seed-templates`
+  auth_service.py         # Google sign-in: allowlist matching (config-only, no DB/UI)
+                           #   + first-sign-in user provisioning
+  access_control.py       # Deny-by-default before_request guard: every endpoint not in
+                           #   PUBLIC_ENDPOINTS needs a signed-in, still-allowlisted user
+  cli.py                  # `flask seed-templates`
   routes/                 # Request handlers split by domain (sub-package)
     __init__.py           # Blueprint + sub-module imports
     helpers.py            # Shared route utilities (household scoping, slugify, parse_date)
@@ -75,6 +79,13 @@ always owned by an appliance either (a vendor visit can stand alone) — both
 carry their own `household_id` — check that directly when scoping access
 (see `document_file` in `routes/documents.py` and
 `_get_service_record_or_404` in `routes/service_records.py`).
+
+**Authentication**: `access_control.py` already denies every request from a
+signed-in-but-not-allowlisted or anonymous client, so a new route is private by
+default — keep `@login_required` on it anyway, and never add to
+`PUBLIC_ENDPOINTS`/`PUBLIC_STATIC_FILES` unless the login page itself needs it.
+The allowlist (`HOMEBASE_ALLOWED_EMAILS`) is server config only; don't add a
+UI or table for it.
 
 **New Route Domains**: Add routes to the appropriate sub-module in
 `app/routes/`. If none fits, create a new sub-module and register it in

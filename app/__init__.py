@@ -5,8 +5,10 @@ import logging
 import os
 import re
 import sqlite3
+from datetime import timedelta
 from logging.handlers import RotatingFileHandler
 
+from authlib.integrations.flask_client import OAuth
 from flask import Flask, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -23,6 +25,8 @@ migrate = Migrate()
 csrf = CSRFProtect()
 login_manager = LoginManager()
 login_manager.login_view = 'main.login'
+
+GOOGLE_DISCOVERY_URL = 'https://accounts.google.com/.well-known/openid-configuration'
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +99,48 @@ def _phonefmt(value):
     return f'({digits[0:3]}) {digits[3:6]}-{digits[6:10]}'
 
 
+def _configure_auth(app, is_production):
+    """Load Google OAuth + allowlist settings from the environment — the only place they can be set."""
+    from app.auth_service import parse_allowed_emails
+
+    app.config['GOOGLE_CLIENT_ID'] = os.getenv('GOOGLE_CLIENT_ID', '')
+    app.config['GOOGLE_CLIENT_SECRET'] = os.getenv('GOOGLE_CLIENT_SECRET', '')
+    app.config['GOOGLE_REDIRECT_URI'] = os.getenv('GOOGLE_REDIRECT_URI', '')
+    app.config['ALLOWED_EMAILS'] = parse_allowed_emails(os.getenv('HOMEBASE_ALLOWED_EMAILS'))
+
+    required = {  # env var -> config key it populates
+        'GOOGLE_CLIENT_ID': 'GOOGLE_CLIENT_ID',
+        'GOOGLE_CLIENT_SECRET': 'GOOGLE_CLIENT_SECRET',
+        'HOMEBASE_ALLOWED_EMAILS': 'ALLOWED_EMAILS',
+    }
+    if is_production:
+        # Behind a TLS-terminating proxy, url_for(_external=True) would build an
+        # http:// callback that Google rejects, so production must spell it out.
+        required['GOOGLE_REDIRECT_URI'] = 'GOOGLE_REDIRECT_URI'
+    missing = ', '.join(env for env, key in required.items() if not app.config[key])
+    if missing:
+        if is_production:
+            raise RuntimeError(f'Google sign-in is not configured; set {missing}.')
+        logger.warning('Google sign-in is not fully configured (missing %s); nobody can log in.', missing)
+
+    app.config.update(
+        SESSION_COOKIE_HTTPONLY=True,
+        # Lax, not Strict: the session cookie must ride along on Google's
+        # top-level redirect back to the callback or the OAuth state is lost.
+        SESSION_COOKIE_SAMESITE='Lax',
+        SESSION_COOKIE_SECURE=is_production,
+        PERMANENT_SESSION_LIFETIME=timedelta(days=14),
+    )
+
+    # Per app rather than a module-level OAuth(): Authlib caches each client with
+    # the config of the first app that created it.
+    app.extensions['google_oauth'] = OAuth(app).register(
+        'google',
+        server_metadata_url=GOOGLE_DISCOVERY_URL,
+        client_kwargs={'scope': 'openid email profile', 'code_challenge_method': 'S256'},
+    )
+
+
 def create_app():
     """
     Application factory pattern
@@ -116,8 +162,9 @@ def create_app():
 
     _configure_logging(base_dir)
 
+    is_production = os.getenv('FLASK_ENV') == 'production'
     if app.config['SECRET_KEY'] == _DEV_KEY:
-        if os.getenv('FLASK_ENV') == 'production':
+        if is_production:
             raise RuntimeError(
                 'SECRET_KEY must be set in production. '
                 'Generate one with: python3 -c "import secrets; print(secrets.token_hex(32))"'
@@ -127,8 +174,13 @@ def create_app():
             'Add SECRET_KEY to your .env file before deploying.'
         )
 
+    _configure_auth(app, is_production)
+
     db.init_app(app)
     migrate.init_app(app, db)
+    # Registered before CSRFProtect so the auth check is the first before_request hook.
+    from app import access_control
+    access_control.register(app)
     csrf.init_app(app)
     login_manager.init_app(app)
 

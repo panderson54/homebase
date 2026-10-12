@@ -59,14 +59,48 @@ app's structure and deployment approach.
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt -r requirements-dev.txt
 
-cp .env.example .env   # fill in SECRET_KEY at minimum
+cp .env.example .env   # SECRET_KEY + the Google sign-in settings below
 
 FLASK_APP=run.py .venv/bin/flask db upgrade
 FLASK_APP=run.py .venv/bin/flask seed-templates
-FLASK_APP=run.py .venv/bin/flask create-user   # prompts for email/name/password
 
 .venv/bin/python run.py   # http://localhost:5100
 ```
+
+## Sign-in (Google, allowlist only)
+
+Every request — pages, uploads, static files, even unknown URLs — requires a
+signed-in Google account whose email is on the server's allowlist. The only
+exceptions are the login page, the Google OAuth endpoints, and the three
+static files the login page itself loads. There are no passwords and no
+self-serve sign-up.
+
+1. In Google Cloud Console, create an OAuth client of type **Web application**.
+   Add `https://<your-domain>/auth/google/callback` (and, for local dev,
+   `http://localhost:5100/auth/google/callback`) as authorized redirect URIs.
+   Google only accepts `https` + a domain name, or `localhost`, so a LAN IP
+   won't work — use a real domain or e.g. a Tailscale `*.ts.net` HTTPS name.
+   Leaving the consent screen in **Testing** mode with the same accounts as
+   test users gives you a second, Google-side allowlist.
+2. Set in `.env`:
+   - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+   - `GOOGLE_REDIRECT_URI` — the exact callback URL registered above
+     (required in production, where TLS ends at the proxy)
+   - `HOMEBASE_ALLOWED_EMAILS` — comma-separated Google accounts, e.g.
+     `alice@gmail.com,bob@gmail.com`. Matching ignores case and, for Gmail,
+     the dots Google itself ignores.
+3. Restart. With `FLASK_ENV=production` the app refuses to start if any of
+   these is missing; in development it starts but nobody can sign in.
+
+The allowlist exists only in server config — there is no admin UI or table
+for it. The first allowed sign-in creates that user (and the household, on a
+fresh install); everyone on the list shares the one household. To revoke
+access, remove the address and restart: the allowlist is re-checked on every
+request, so an existing session stops working immediately. Sessions last 14
+days; rotating `SECRET_KEY` signs everyone out.
+
+If nginx serves `/static` directly, it bypasses this check — let Flask serve
+it (the Docker setup does) or protect that location in nginx too.
 
 ### Running tests
 
@@ -90,7 +124,9 @@ app/
   context_export_service.py   # Builds the Markdown context export
   feature_request_data.py     # Agent feature request choices, fields, instructions
   feature_request_service.py  # Validates/reviews/renders agent feature requests
-  cli.py                      # `flask create-user`, `flask seed-templates`
+  auth_service.py             # Google sign-in: allowlist matching + user provisioning
+  access_control.py           # Deny-by-default guard run before every request
+  cli.py                      # `flask seed-templates`
   mcp_server.py               # MCP server: log service visits via an LLM client
   routes/                     # Blueprint, split by domain
   templates/, static/         # Jinja2 templates, Bootstrap-based
@@ -101,8 +137,6 @@ docs/appliance-tracker-plan.md  # Architecture & build plan
 
 ## CLI commands
 
-- `flask create-user` — creates the household (on first run) and a user
-  account; prompts for email, name, and password
 - `flask seed-templates` — (re)loads `category_templates` from
   `app/category_templates_data.py`; safe to re-run, it replaces existing rows
 
@@ -119,8 +153,10 @@ It exposes `list_appliances`, `list_zones`, and `list_vendors` (read-only
 lookups) and `create_service` (logs a vendor visit against an existing
 appliance or zone, reusing a vendor by name or creating a stub for a new
 one). It never creates appliances, zones, or rooms — those stay a manual
-step in the web app. Like `flask create-user`, it operates on the single
-household this instance was set up for, so no separate login is needed.
+step in the web app. It operates on the single household this instance was
+set up for and runs as a local stdio process (never over HTTP), so Google
+sign-in doesn't apply to it; sign in to the web app once first so the
+household exists.
 
 It also exposes feature-request tools (see below): `feature_request_instructions`,
 `list_feature_requests`, `get_feature_request`, `submit_feature_request`, and
@@ -142,19 +178,19 @@ approving their own requests. The instructions tell them not to.
 ### Docker Compose
 
 ```bash
-cp .env.example .env   # set SECRET_KEY
+cp .env.example .env   # set SECRET_KEY + Google sign-in settings (see Sign-in)
 docker compose up --build -d
 ```
 
 The app listens on port 5100, with `./data` (SQLite DB + uploaded files) and
-`./logs` bind-mounted so they persist across container rebuilds. Run the
-CLI commands above via `docker compose exec homebase flask create-user`
-(and `seed-templates`) once the container is up.
+`./logs` bind-mounted so they persist across container rebuilds. Run
+`docker compose exec homebase flask seed-templates` once the container is up,
+then sign in with an allowlisted Google account.
 
 ### Raspberry Pi (self-hosted, alongside `ledger_finance`)
 
 Same shape as `ledger_finance`'s deployment: either the Docker Compose setup
-above, or Nginx (reverse proxy + TLS/Basic Auth if exposed beyond your LAN)
+above, or Nginx (reverse proxy + TLS — required, since Google sign-in needs https)
 in front of Gunicorn managed by a systemd unit, running on a different port
 than `ledger_finance`. `entrypoint.sh` runs `flask db upgrade` automatically
 before starting Gunicorn, so deploys are just "pull, rebuild, restart."

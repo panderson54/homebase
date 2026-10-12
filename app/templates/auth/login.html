@@ -7,18 +7,7 @@
       <img src="{{ url_for('static', filename='logo.svg') }}" alt="" width="48" height="48">
       <h1 class="h3 mt-2 mb-0">Homebase</h1>
     </div>
-    <form method="post">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="mb-3">
-        <label class="form-label" for="email">Email</label>
-        <input type="email" class="form-control" id="email" name="email" required autofocus>
-      </div>
-      <div class="mb-3">
-        <label class="form-label" for="password">Password</label>
-        <input type="password" class="form-control" id="password" name="password" required>
-      </div>
-      <button type="submit" class="btn btn-primary w-100">Log in</button>
-    </form>
+    <a href="{{ url_for('main.google_login', next=next_path) }}" class="btn btn-primary w-100">Sign in with Google</a>
   </div>
 </div>
 {% endblock %}

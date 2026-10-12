@@ -221,7 +221,7 @@ class TestApplianceLookup:
 
     def test_lookup_requires_login(self, client):
         resp = client.post('/appliances/lookup', data={'model_number': 'WDT730PAHZ0'})
-        assert resp.status_code == 302
+        assert resp.status_code == 401
 
     def test_create_with_manual_url_attaches_document(self, logged_in_client, user):
         from app import document_service
