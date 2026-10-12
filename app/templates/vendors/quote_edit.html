@@ -67,6 +67,28 @@
   </div>
 </form>
 
+{% if quote.status.value == 'accepted' %}
+<!-- Project -->
+<section class="mt-5">
+  <h2 class="h5">Project</h2>
+  <p class="text-muted small">Date each stage as it happens. Clear a date to undo that stage.</p>
+  <form method="post" action="{{ url_for('main.vendor_quote_project_update', vendor_id=vendor.id, quote_id=quote.id) }}"
+        class="row g-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for key, label, field in project_stages %}
+      <div class="col-sm-6 col-md-2">
+        <label class="form-label" for="{{ field }}">{{ label if key != 'scheduled' else 'Scheduled for' }}</label>
+        <input type="date" class="form-control" id="{{ field }}" name="{{ field }}"
+               value="{{ quote[field].isoformat() if quote[field] else '' }}">
+      </div>
+    {% endfor %}
+    <div class="col-12">
+      <button type="submit" class="btn btn-primary">Save project dates</button>
+    </div>
+  </form>
+</section>
+{% endif %}
+
 <!-- Attachments -->
 <section class="mt-5">
   <h2 class="h5">Attachments</h2>

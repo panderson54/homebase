@@ -1,7 +1,7 @@
 from flask import render_template, url_for
 from flask_login import current_user, login_required
 
-from app import vendor_quote_service
+from app import project_service, vendor_quote_service
 from app.maintenance_calc import due_bucket
 from app.models import Appliance, ApplianceStatus, Zone
 from app.routes import main_bp
@@ -78,4 +78,6 @@ def dashboard():
     return render_template(
         'dashboard/dashboard.html', buckets=buckets,
         open_quote_groups=vendor_quote_service.open_quotes_by_job(current_user.household_id),
+        active_projects=project_service.active_projects(current_user.household_id),
+        current_stage=project_service.current_stage, next_stage=project_service.next_stage,
     )

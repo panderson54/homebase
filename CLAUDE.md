@@ -20,6 +20,7 @@ app/
   vendor_types_data.py     # Suggested vendor types for the select-with-"other" picker
   vendor_quote_service.py  # Vendor quote CRUD + linking a quote to its job (the Appliance/
                            #   Zone pro service it prices); accepting one declines that job's others
+  project_service.py       # Accepted-quote lifecycle (Accepted → Deposit paid → Scheduled → In progress → Done)
   context_export_service.py  # Builds the Markdown context export
   feature_request_data.py  # Agent feature request choices, field specs, agent instructions
   feature_request_service.py  # Validate/create/update/review/render agent feature requests

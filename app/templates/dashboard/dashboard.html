@@ -26,6 +26,34 @@
 </div>
 
 {% from 'quotes/_macros.html' import valid_until, job_target, job_link %}
+{% if active_projects %}
+  <h2 class="h5 mt-4">Active projects <span class="text-muted">({{ active_projects|length }})</span></h2>
+  <ul class="list-group mb-4">
+    {% for quote in active_projects %}
+      {% set stage = current_stage(quote) %}
+      {% set upcoming = next_stage(quote) %}
+      <li class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div>
+          <a href="{{ url_for('main.vendor_quote_edit', vendor_id=quote.vendor.id, quote_id=quote.id) }}"><strong>{{ quote.vendor.name }}</strong></a>
+          <span class="badge text-bg-success ms-1">{{ stage[1] }}{% if quote[stage[2]] %} · {{ quote[stage[2]]|datefmt }}{% endif %}</span>
+          <div class="small text-muted">
+            {% if quote.description %}{{ quote.description }}{% endif %}
+            {% if quote.job %}{{ '· ' if quote.description }}{{ job_link(quote.appliance, quote.zone) }}{% endif %}
+            {% if quote.amount is not none %}{{ '· ' if quote.description or quote.job }}{{ quote.amount|currency }}{% endif %}
+          </div>
+        </div>
+        <form method="post" class="d-flex align-items-center gap-2"
+              action="{{ url_for('main.vendor_quote_project_advance', vendor_id=quote.vendor.id, quote_id=quote.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="return_to" value="dashboard">
+          <span class="small text-muted">Next: {{ upcoming[1] }}</span>
+          <input type="date" class="form-control form-control-sm" name="on" style="width: 9.5rem" aria-label="Date for {{ upcoming[1] }}">
+          <button type="submit" class="btn btn-sm btn-outline-success">Mark {{ upcoming[1]|lower }}</button>
+        </form>
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}
 {% if open_quote_groups %}
   <h2 class="h5 mt-4">Open quotes <span class="text-muted">({{ open_quote_groups|sum(attribute='quotes', start=[])|length }})</span></h2>
   <div class="row g-3 mb-4">
