@@ -1,13 +1,14 @@
 from flask import abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
-from app import document_service, vendor_quote_service
+from app import document_service, project_service, vendor_quote_service
 from app.models import Appliance, ApplianceStatus, QuoteStatus, Zone
 from app.routes import main_bp
 from app.routes.helpers import (
     get_household_appliance_or_404, get_household_quote_or_404, get_household_vendor_or_404,
     get_household_zone_or_404, get_vendor_quote_or_404, parse_date, parse_decimal, parse_service_target,
 )
+from app.project_service import ProjectError
 from app.vendor_quote_service import QuoteValidationError
 
 _ATTACH_ERROR = 'Attach a file (PDF, PNG, JPG, WEBP) or provide a link.'
@@ -103,7 +104,7 @@ def vendor_quote_edit(vendor_id, quote_id):
         appliances.append(quote.appliance)  # a retired appliance must stay selectable or saving would unlink it
     return render_template(
         'vendors/quote_edit.html', vendor=vendor, quote=quote, documents=documents,
-        appliances=appliances, zones=zones,
+        appliances=appliances, zones=zones, project_stages=project_service.STAGES,
     )
 
 
@@ -115,6 +116,33 @@ def vendor_quote_accept(vendor_id, quote_id):
     if request.form.get('return_to') == 'compare' and quote.job is not None:
         return redirect(_compare_url(quote.appliance, quote.zone))
     return redirect(url_for('main.vendor_detail', vendor_id=vendor.id))
+
+
+@main_bp.route('/vendors/<int:vendor_id>/quotes/<int:quote_id>/project', methods=['POST'])
+@login_required
+def vendor_quote_project_update(vendor_id, quote_id):
+    vendor = get_household_vendor_or_404(vendor_id)
+    quote = get_vendor_quote_or_404(vendor, quote_id)
+    try:
+        dates = {field: parse_date(request.form.get(field)) for field in project_service.DATE_FIELDS}
+        project_service.set_dates(quote, dates)
+    except ValueError as exc:  # malformed date (strptime) or ProjectError
+        flash(str(exc) if isinstance(exc, ProjectError) else 'Enter project dates as YYYY-MM-DD.', 'danger')
+    return redirect(url_for('main.vendor_quote_edit', vendor_id=vendor.id, quote_id=quote.id))
+
+
+@main_bp.route('/vendors/<int:vendor_id>/quotes/<int:quote_id>/project/advance', methods=['POST'])
+@login_required
+def vendor_quote_project_advance(vendor_id, quote_id):
+    vendor = get_household_vendor_or_404(vendor_id)
+    quote = get_vendor_quote_or_404(vendor, quote_id)
+    try:
+        project_service.advance(quote, parse_date(request.form.get('on')))
+    except ValueError as exc:  # malformed date (strptime) or ProjectError
+        flash(str(exc) if isinstance(exc, ProjectError) else 'Enter the date as YYYY-MM-DD.', 'danger')
+    if request.form.get('return_to') == 'dashboard':
+        return redirect(url_for('main.dashboard'))
+    return redirect(url_for('main.vendor_quote_edit', vendor_id=vendor.id, quote_id=quote.id))
 
 
 @main_bp.route('/vendors/<int:vendor_id>/quotes/<int:quote_id>/delete', methods=['POST'])

@@ -3,6 +3,8 @@ CRUD: a job (the Appliance or Zone a quote is linked to) has at most one
 accepted quote, so accepting one declines that job's other competing bids,
 whichever vendor they came from. An unlinked quote has no competitors to
 decline, and an independent estimate (separate work) is never a rival."""
+from datetime import date
+
 from app import db, document_service
 from app.models import QuoteStatus, Vendor, VendorQuote
 
@@ -48,6 +50,12 @@ def _decline_competitors(quote):
             other.status = QuoteStatus.declined
 
 
+def _on_accepted(quote):
+    if quote.accepted_on is None:
+        quote.accepted_on = date.today()
+    _decline_competitors(quote)
+
+
 def create(vendor, quote_number=None, description=None, amount=None, valid_until=None, status=None,
            appliance=None, zone=None, quoted_on=None, is_independent_estimate=False):
     """Raises QuoteValidationError if the fields don't describe a usable quote."""
@@ -57,7 +65,7 @@ def create(vendor, quote_number=None, description=None, amount=None, valid_until
     db.session.add(quote)
     db.session.flush()
     if quote.status == QuoteStatus.accepted:
-        _decline_competitors(quote)
+        _on_accepted(quote)
     db.session.commit()
     return quote
 
@@ -70,7 +78,7 @@ def update(quote, quote_number=None, description=None, amount=None, valid_until=
     for name, value in {**fields, 'appliance': appliance, 'zone': zone}.items():
         setattr(quote, name, value)
     if quote.status == QuoteStatus.accepted:
-        _decline_competitors(quote)
+        _on_accepted(quote)
     db.session.commit()
     return quote
 
@@ -104,7 +112,7 @@ def unlink(quote):
 
 def accept(quote):
     quote.status = QuoteStatus.accepted
-    _decline_competitors(quote)
+    _on_accepted(quote)
     db.session.commit()
     return quote
 

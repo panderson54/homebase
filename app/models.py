@@ -383,6 +383,12 @@ class VendorQuote(db.Model):
     appliance_id = db.Column(db.Integer, db.ForeignKey('appliances.id'), index=True)
     zone_id = db.Column(db.Integer, db.ForeignKey('zones.id'), index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    # Project lifecycle once accepted: one date per stage (see project_service).
+    accepted_on = db.Column(db.Date)
+    deposit_paid_on = db.Column(db.Date)
+    scheduled_on = db.Column(db.Date)
+    started_on = db.Column(db.Date)
+    completed_on = db.Column(db.Date)
 
     vendor = db.relationship('Vendor', back_populates='quotes')
     appliance = db.relationship('Appliance', back_populates='quotes')
