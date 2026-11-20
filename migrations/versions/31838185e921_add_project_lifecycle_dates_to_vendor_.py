@@ -1,7 +1,7 @@
 """add project lifecycle dates to vendor quotes
 
 Revision ID: 31838185e921
-Revises: b4e7c9d2a1f0, c2b6fe747d46, 66cdcb28cec3
+Revises: d5e8a2c4f9b1
 Create Date: 2026-10-12 06:02:36.489197
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '31838185e921'
-down_revision = ('b4e7c9d2a1f0', 'c2b6fe747d46', '66cdcb28cec3')
+down_revision = 'd5e8a2c4f9b1'
 branch_labels = None
 depends_on = None
 
